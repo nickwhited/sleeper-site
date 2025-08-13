@@ -575,321 +575,398 @@ async function fetchTeamPoints(week = 1) {
   }
 }
 
-let currentChart = null; // Keep track of the current chart
+// Global variables
+let teamPointsChart = null;
+let currentWeek = 1;
 
-async function renderTeamPointsChart(week = 1) {
-  const data = await fetchTeamPoints(week);
-
-  // Update status
-  const statusElement = document.getElementById("status");
-  if (statusElement) {
-    statusElement.textContent = `Status: Showing Week ${week} data (${data.length} teams)`;
+// Fetch team points for a specific week
+async function fetchTeamPoints(week) {
+  try {
+    const response = await fetch(
+      `http://localhost:3000/api/team-points/${week}`
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Error fetching team points:", error);
+    // Fallback to mock data if server is unavailable
+    return generateMockTeamPoints(week);
   }
+}
 
-  const ctx = document.getElementById("teamPointsChart").getContext("2d");
+// Generate mock team points data (fallback)
+function generateMockTeamPoints(week) {
+  const teams = [
+    "Team 1",
+    "Team 2",
+    "Team 3",
+    "Team 4",
+    "Team 5",
+    "Team 6",
+    "Team 7",
+    "Team 8",
+    "Team 9",
+    "Team 10",
+  ];
+
+  return teams.map((team, index) => ({
+    team_name: team,
+    points: Math.floor(Math.random() * 150) + 50,
+    roster_id: (index + 1).toString(),
+    team_id: `team_${index + 1}`,
+    avatar_id: null,
+    is_real_team: false,
+  }));
+}
+
+// Render team points chart
+function renderTeamPointsChart(week) {
+  const ctx = document.getElementById("teamPointsChart");
 
   // Destroy previous chart if it exists
-  if (currentChart) {
-    currentChart.destroy();
+  if (teamPointsChart) {
+    teamPointsChart.destroy();
   }
 
-  currentChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: data.map((d) => d.teamName),
-      datasets: [
-        {
-          label: `Week ${week} Points`,
-          data: data.map((d) => d.points),
-          backgroundColor: "rgba(54, 162, 235, 0.7)",
-          borderColor: "rgba(54, 162, 235, 1)",
-          borderWidth: 1,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: "Fantasy Points",
+  // Show loading state
+  ctx.style.display = "none";
+  document.getElementById(
+    "status"
+  ).textContent = `Status: Loading week ${week} data...`;
+
+  fetchTeamPoints(week)
+    .then((data) => {
+      if (data && data.length > 0) {
+        const labels = data.map((team) => team.team_name);
+        const points = data.map((team) => team.points);
+
+        // Create the chart
+        teamPointsChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: `Week ${week} Points`,
+                data: points,
+                backgroundColor: "rgba(54, 162, 235, 0.8)",
+                borderColor: "rgba(54, 162, 235, 1)",
+                borderWidth: 1,
+              },
+            ],
           },
-        },
-        x: {
-          title: {
-            display: true,
-            text: "Teams",
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Points",
+                },
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "Teams",
+                },
+              },
+            },
+            plugins: {
+              title: {
+                display: true,
+                text: `Team Points - Week ${week}`,
+                font: {
+                  size: 16,
+                },
+              },
+            },
           },
-        },
-      },
-      plugins: {
-        title: {
-          display: true,
-          text: `Week ${week} Team Points`,
-        },
-      },
-    },
-  });
+        });
+
+        document.getElementById(
+          "status"
+        ).textContent = `Status: Week ${week} data loaded successfully`;
+        ctx.style.display = "block";
+      } else {
+        document.getElementById("status").textContent =
+          "Status: No data available for this week";
+      }
+    })
+    .catch((error) => {
+      console.error("Error rendering chart:", error);
+      document.getElementById("status").textContent =
+        "Status: Error loading data";
+    });
 }
 
-// Function to refresh data for the selected week
-async function refreshData() {
-  const weekSelect = document.getElementById("weekSelect");
-  const selectedWeek = parseInt(weekSelect.value);
-
-  console.log(`Refreshing data for week ${selectedWeek}`);
-  await renderTeamPointsChart(selectedWeek);
-}
-
-// Initialize the chart when the page loads
-async function initializeChart() {
-  const weekSelect = document.getElementById("weekSelect");
-
-  // Add event listener for week changes
-  weekSelect.addEventListener("change", async (event) => {
-    const selectedWeek = parseInt(event.target.value);
-    await renderTeamPointsChart(selectedWeek);
-  });
-
-  // Load league info, standings, and initial chart
-  try {
-    console.log("🚀 Initializing dashboard...");
-
-    // Load league info first (this will update the title)
-    await fetchLeagueInfo();
-
-    // Then load standings
-    await refreshStandings();
-
-    // Finally load the chart
-    await renderTeamPointsChart(1);
-
-    console.log("✅ Dashboard initialized successfully!");
-  } catch (error) {
-    console.error("❌ Error initializing dashboard:", error);
-  }
-}
-
-// Function to fetch team standings from BigQuery
+// Fetch team standings
 async function fetchTeamStandings() {
   try {
-    console.log("🏆 Fetching team standings...");
-
-    // Call your API server for standings data
+    console.log("🌐 Fetching team standings from API...");
     const response = await fetch("http://localhost:3000/api/team-standings");
-
+    console.log("📡 API response status:", response.status);
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-
     const data = await response.json();
-    console.log("✅ Standings data fetched:", data);
+    console.log("📊 API returned data:", data);
 
-    return data.standings || [];
+    // Fetch real team names from Sleeper API for teams that have joined
+    const enhancedData = await enhanceTeamNames(data);
+    return enhancedData;
   } catch (error) {
-    console.error("❌ Error fetching standings:", error);
-
-    // Fallback to mock data if server is not running
-    console.log("Using fallback mock standings...");
-    return [
-      {
-        rank: 1,
-        teamName: "Team Alpha",
-        wins: 3,
-        losses: 0,
-        streak: 3,
-        totalScore: 385.2,
-      },
-      {
-        rank: 2,
-        teamName: "Team Bravo",
-        wins: 2,
-        losses: 1,
-        streak: 1,
-        totalScore: 342.8,
-      },
-      {
-        rank: 3,
-        teamName: "Team Charlie",
-        wins: 2,
-        losses: 1,
-        streak: -1,
-        totalScore: 318.5,
-      },
-      {
-        rank: 4,
-        teamName: "Team Delta",
-        wins: 1,
-        losses: 2,
-        streak: -2,
-        totalScore: 295.1,
-      },
-      {
-        rank: 5,
-        teamName: "Team Echo",
-        wins: 1,
-        losses: 2,
-        streak: -1,
-        totalScore: 287.6,
-      },
-      {
-        rank: 6,
-        teamName: "Team Foxtrot",
-        wins: 1,
-        losses: 2,
-        streak: 1,
-        totalScore: 276.3,
-      },
-      {
-        rank: 7,
-        teamName: "Team Golf",
-        wins: 0,
-        losses: 3,
-        streak: -3,
-        totalScore: 254.9,
-      },
-      {
-        rank: 8,
-        teamName: "Team Hotel",
-        wins: 0,
-        losses: 3,
-        streak: -3,
-        totalScore: 241.7,
-      },
-      {
-        rank: 9,
-        teamName: "Team India",
-        wins: 0,
-        losses: 3,
-        streak: -3,
-        totalScore: 228.4,
-      },
-      {
-        rank: 10,
-        teamName: "Team Juliet",
-        wins: 0,
-        losses: 3,
-        streak: -3,
-        totalScore: 215.2,
-      },
-    ];
+    console.error("❌ Error fetching team standings:", error);
+    // Fallback to mock data if server is unavailable
+    console.log("🔄 Using fallback mock data...");
+    return generateMockStandings();
   }
 }
 
-// Function to render the standings table
-function renderStandingsTable(standings) {
-  const tbody = document.getElementById("standingsBody");
+// Enhance team names with real Sleeper display names
+async function enhanceTeamNames(teams) {
+  try {
+    console.log("🏈 Enhancing team names with Sleeper API data...");
 
+    // Get unique owner IDs that exist
+    const ownerIds = [...new Set(teams.map((t) => t.owner_id).filter(Boolean))];
+    console.log("👥 Found owner IDs:", ownerIds);
+
+    // Fetch user profiles from Sleeper API
+    const userProfiles = {};
+    for (const ownerId of ownerIds) {
+      try {
+        const response = await fetch(
+          `https://api.sleeper.app/v1/user/${ownerId}`
+        );
+        if (response.ok) {
+          const user = await response.json();
+          userProfiles[ownerId] = user;
+          console.log(
+            `✅ Fetched profile for ${ownerId}: ${user.display_name}`
+          );
+        }
+      } catch (error) {
+        console.log(
+          `⚠️ Could not fetch profile for ${ownerId}:`,
+          error.message
+        );
+      }
+    }
+
+    // Enhance team data with real names and avatars
+    const enhancedTeams = teams.map((team) => {
+      if (team.owner_id && userProfiles[team.owner_id]) {
+        // Use real Sleeper display name and avatar
+        return {
+          ...team,
+          team_name: userProfiles[team.owner_id].display_name,
+          avatar_id: userProfiles[team.owner_id].avatar,
+          is_real_team: true,
+        };
+      } else {
+        // Use generic team name for unjoined slots
+        return {
+          ...team,
+          team_name: `Team ${team.roster_id}`,
+          avatar_id: null,
+          is_real_team: false,
+        };
+      }
+    });
+
+    console.log(
+      "🎯 Enhanced teams:",
+      enhancedTeams.map(
+        (t) =>
+          `${t.roster_id}: "${t.team_name}" (${
+            t.is_real_team ? "real" : "generic"
+          })`
+      )
+    );
+    return enhancedTeams;
+  } catch (error) {
+    console.error("❌ Error enhancing team names:", error);
+    return teams; // Return original data if enhancement fails
+  }
+}
+
+// Generate mock standings data (fallback)
+function generateMockStandings() {
+  const teams = [
+    "Team 1",
+    "Team 2",
+    "Team 3",
+    "Team 4",
+    "Team 5",
+    "Team 6",
+    "Team 7",
+    "Team 8",
+    "Team 9",
+    "Team 10",
+  ];
+
+  return teams.map((team, index) => ({
+    team_name: team,
+    roster_id: (index + 1).toString(),
+    team_id: `team_${index + 1}`,
+    owner_id: null,
+    avatar_id: null,
+    is_real_team: false,
+    wins: Math.floor(Math.random() * 8) + 2,
+    losses: Math.floor(Math.random() * 8) + 2,
+    ties: 0,
+    streak:
+      Math.random() > 0.5
+        ? `W${Math.floor(Math.random() * 3) + 1}`
+        : `L${Math.floor(Math.random() * 3) + 1}`,
+    total_score: Math.floor(Math.random() * 1000) + 800,
+    rank: index + 1,
+  }));
+}
+
+// Render standings table
+function renderStandingsTable(standings) {
+  console.log("🎯 Rendering standings table with data:", standings);
+  const tbody = document.getElementById("standingsBody");
   if (!tbody) {
-    console.error("Standings table body not found");
+    console.error("❌ Could not find standingsBody element!");
     return;
   }
-
-  // Clear existing content
   tbody.innerHTML = "";
 
-  if (!standings || standings.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">
-          No standings data available
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  // Sort by rank
-  const sortedStandings = standings.sort((a, b) => a.rank - b.rank);
-
-  // Create table rows
-  sortedStandings.forEach((team, index) => {
+  standings.forEach((team) => {
     const row = document.createElement("tr");
 
-    // Add rank-specific styling
-    if (team.rank === 1) row.classList.add("rank-1");
-    else if (team.rank === 2) row.classList.add("rank-2");
-    else if (team.rank === 3) row.classList.add("rank-3");
+    // Add rank with special styling for top 3
+    const rankCell = document.createElement("td");
+    rankCell.textContent = team.rank;
+    if (team.rank === 1) rankCell.className = "rank-1";
+    else if (team.rank === 2) rankCell.className = "rank-2";
+    else if (team.rank === 3) rankCell.className = "rank-3";
+    row.appendChild(rankCell);
 
-    // Format streak with color
-    const streakClass = team.streak > 0 ? "streak-positive" : "streak-negative";
-    const streakText = team.streak > 0 ? `+${team.streak}` : team.streak;
+    // Add team info with avatar
+    const teamCell = document.createElement("td");
+    teamCell.className = "team-info";
 
-    row.innerHTML = `
-      <td><strong>${team.rank}</strong></td>
-      <td><strong>${team.teamName}</strong></td>
-      <td>${team.wins}</td>
-      <td>${team.losses}</td>
-      <td class="${streakClass}">${streakText}</td>
-      <td><strong>${team.totalScore.toFixed(1)}</strong></td>
-    `;
+    if (team.avatar_id) {
+      const avatar = document.createElement("img");
+      avatar.src = `https://sleepercdn.com/avatars/thumbs/${team.avatar_id}`;
+      avatar.alt = `${team.team_name} avatar`;
+      avatar.className = "team-avatar";
+      teamCell.appendChild(avatar);
+    } else {
+      // Default avatar placeholder
+      const defaultAvatar = document.createElement("div");
+      defaultAvatar.className = "team-avatar-placeholder";
+      defaultAvatar.innerHTML = "🏈";
+      teamCell.appendChild(defaultAvatar);
+    }
+
+    const teamName = document.createElement("span");
+    teamName.textContent = team.team_name;
+    teamName.className = "team-name";
+    teamCell.appendChild(teamName);
+
+    row.appendChild(teamCell);
+
+    // Add other columns
+    row.appendChild(createCell(team.wins));
+    row.appendChild(createCell(team.losses));
+    row.appendChild(createCell(team.ties));
+
+    // Add streak with styling
+    const streakCell = document.createElement("td");
+    streakCell.textContent = team.streak;
+    if (team.streak.startsWith("W")) {
+      streakCell.className = "streak-positive";
+    } else if (team.streak.startsWith("L")) {
+      streakCell.className = "streak-negative";
+    }
+    row.appendChild(streakCell);
+
+    row.appendChild(createCell(team.total_score));
 
     tbody.appendChild(row);
   });
-
-  // Update status
-  const statusElement = document.getElementById("status");
-  if (statusElement) {
-    statusElement.textContent = `Status: Standings loaded (${standings.length} teams)`;
-  }
 }
 
-// Function to refresh standings
+// Helper function to create table cells
+function createCell(content) {
+  const cell = document.createElement("td");
+  cell.textContent = content;
+  return cell;
+}
+
+// Refresh standings
 async function refreshStandings() {
   try {
-    console.log("🔄 Refreshing standings...");
+    console.log("🔄 Starting to refresh standings...");
     const standings = await fetchTeamStandings();
+    console.log("📊 Received standings data:", standings);
     renderStandingsTable(standings);
+    console.log("✅ Standings table rendered successfully");
   } catch (error) {
-    console.error("Error refreshing standings:", error);
+    console.error("❌ Error refreshing standings:", error);
   }
 }
 
-// Function to fetch league information and update the dashboard title
+// Fetch league information
 async function fetchLeagueInfo() {
   try {
-    console.log("🏈 Fetching league info...");
-
     const response = await fetch("http://localhost:3000/api/league-info");
-
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-
     const data = await response.json();
-    console.log("✅ League info fetched:", data);
-
-    // Update the dashboard title
-    updateDashboardTitle(data.league);
-
     return data.league;
   } catch (error) {
-    console.error("❌ Error fetching league info:", error);
-
-    // Use fallback title
-    updateDashboardTitle({
-      name: "Fantasy League Dashboard",
-      season: "2025",
-      status: "Offline",
-    });
-
+    console.error("Error fetching league info:", error);
     return null;
   }
 }
 
-// Function to update the dashboard title
-function updateDashboardTitle(leagueInfo) {
-  const titleElement = document.querySelector("h1");
-  if (titleElement && leagueInfo) {
-    titleElement.innerHTML = `🏈 ${leagueInfo.name} Dashboard`;
-
-    // Also update the page title
-    document.title = `${leagueInfo.name} Dashboard`;
-
-    console.log(`✅ Dashboard title updated to: ${leagueInfo.name}`);
+// Update dashboard title with league name
+async function updateDashboardTitle() {
+  try {
+    const leagueInfo = await fetchLeagueInfo();
+    if (leagueInfo && leagueInfo.name) {
+      const title = document.querySelector("h1");
+      title.textContent = `🏈 ${leagueInfo.name} Dashboard`;
+    }
+  } catch (error) {
+    console.error("Error updating dashboard title:", error);
   }
+}
+
+// Initialize chart and event listeners
+function initializeChart() {
+  // First fetch league info and update title
+  updateDashboardTitle();
+
+  // Then refresh standings
+  refreshStandings();
+
+  // Finally render the initial chart
+  renderTeamPointsChart(currentWeek);
+
+  // Add event listeners
+  document.getElementById("weekSelect").addEventListener("change", (e) => {
+    currentWeek = parseInt(e.target.value);
+    renderTeamPointsChart(currentWeek);
+  });
+
+  document.getElementById("refreshData").addEventListener("click", () => {
+    renderTeamPointsChart(currentWeek);
+  });
+
+  document.getElementById("refreshStandings").addEventListener("click", () => {
+    refreshStandings();
+  });
 }
 
 // Password protection functions
@@ -940,20 +1017,20 @@ function showSettingsDashboard() {
         <button class="back-button" onclick="backToMainDashboard()">← Back to Dashboard</button>
         <h1>⚙️ Settings Dashboard</h1>
       </div>
-      
+
       <div class="settings-grid">
         <div class="settings-card" onclick="openTestSite()">
           <div class="card-icon">🧪</div>
           <h3>Test Site</h3>
           <p>Access Test.html for site testing</p>
         </div>
-        
+
         <div class="settings-card">
           <div class="card-icon">🔧</div>
           <h3>Settings 2</h3>
           <p>Placeholder for future settings</p>
         </div>
-        
+
         <div class="settings-card">
           <div class="card-icon">⚡</div>
           <h3>Settings 3</h3>
@@ -994,7 +1071,7 @@ function addSettingsStyles() {
       max-width: 1200px;
       margin: 0 auto;
     }
-    
+
     .settings-header {
       display: flex;
       align-items: center;
@@ -1003,7 +1080,7 @@ function addSettingsStyles() {
       padding-bottom: 1rem;
       border-bottom: 3px solid #007bff;
     }
-    
+
     .back-button {
       background: #6c757d;
       color: white;
@@ -1014,17 +1091,17 @@ function addSettingsStyles() {
       font-size: 1rem;
       transition: background-color 0.3s;
     }
-    
+
     .back-button:hover {
       background: #5a6268;
     }
-    
+
     .settings-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 2rem;
     }
-    
+
     .settings-card {
       background: white;
       padding: 2rem;
@@ -1034,22 +1111,22 @@ function addSettingsStyles() {
       transition: all 0.3s ease;
       text-align: center;
     }
-    
+
     .settings-card:hover {
       transform: translateY(-5px);
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     }
-    
+
     .card-icon {
       font-size: 3rem;
       margin-bottom: 1rem;
     }
-    
+
     .settings-card h3 {
       color: #2c3e50;
       margin-bottom: 0.5rem;
     }
-    
+
     .settings-card p {
       color: #6c757d;
       margin: 0;
@@ -1057,3 +1134,6 @@ function addSettingsStyles() {
   `;
   document.head.appendChild(style);
 }
+
+// Initialize when DOM is loaded
+document.addEventListener("DOMContentLoaded", initializeChart);

@@ -1,26 +1,209 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <script src="script.js"></script>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fantasy League Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Chart.js for graphs -->
     <style>
       body {
-        font-family: Arial, sans-serif;
-        margin: 2rem;
-        background-color: #f5f5f5;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
       }
+
       .container {
         max-width: 1200px;
         margin: 0 auto;
         background: white;
+        border-radius: 15px;
         padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         position: relative;
+      }
+
+      h1 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 2rem;
+        font-size: 2.5rem;
+      }
+
+      .status {
+        text-align: center;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        color: #6c757d;
+        font-weight: 500;
+      }
+
+      .controls {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      select,
+      button {
+        padding: 0.75rem 1.5rem;
+        border: 2px solid #007bff;
+        border-radius: 8px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      select {
+        background: white;
+        color: #007bff;
+      }
+
+      select:focus {
+        outline: none;
+        border-color: #0056b3;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+      }
+
+      button {
+        background: #007bff;
+        color: white;
+        font-weight: 600;
+      }
+
+      button:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+      }
+
+      .chart-container {
+        margin-bottom: 3rem;
+        text-align: center;
+      }
+
+      #teamPointsChart {
+        max-width: 100%;
+        height: 400px;
+        margin: 0 auto;
+      }
+
+      .standings-section {
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 3px solid #e9ecef;
+      }
+
+      .standings-section h2 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+        font-size: 2rem;
+      }
+
+      .standings-controls {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin: 0 auto;
+      }
+
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      th {
+        background: #007bff;
+        color: white;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      tr:hover {
+        background: #f8f9fa;
+      }
+
+      /* Rank styling */
+      .rank-1 {
+        background: linear-gradient(135deg, #ffd700, #ffed4e) !important;
+        color: #2c3e50;
+        font-weight: bold;
+      }
+
+      .rank-2 {
+        background: linear-gradient(135deg, #c0c0c0, #e8e8e8) !important;
+        color: #2c3e50;
+        font-weight: bold;
+      }
+
+      .rank-3 {
+        background: linear-gradient(135deg, #cd7f32, #daa520) !important;
+        color: white;
+        font-weight: bold;
+      }
+
+      /* Streak styling */
+      .streak-positive {
+        color: #28a745;
+        font-weight: bold;
+      }
+
+      .streak-negative {
+        color: #dc3545;
+        font-weight: bold;
+      }
+
+      /* Team avatar styling */
+      .team-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .team-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .team-avatar-placeholder {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6c757d, #495057);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        border: 2px solid #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .team-name {
+        font-weight: 600;
+        color: #2c3e50;
       }
 
       /* Settings Button Styles */
@@ -108,88 +291,42 @@
         background: #5a6268;
       }
 
-      .controls {
-        margin-bottom: 2rem;
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-      }
-      select,
-      button {
-        padding: 0.5rem 1rem;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        font-size: 1rem;
-      }
-      button {
-        background: #007bff;
-        color: white;
-        border: none;
-        cursor: pointer;
-      }
-      button:hover {
-        background: #0056b3;
-      }
-      canvas {
-        max-width: 100%;
-        margin-bottom: 2rem;
-      }
-      .status {
-        padding: 1rem;
-        background: #e9ecef;
-        border-radius: 5px;
-        margin-bottom: 1rem;
-      }
+      /* Responsive design */
+      @media (max-width: 768px) {
+        .container {
+          padding: 1rem;
+          margin: 10px;
+        }
 
-      /* Standings Table Styles */
-      .standings-section {
-        margin-bottom: 3rem;
-      }
-      .standings-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 1rem;
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      }
-      .standings-table th {
-        background: #2c3e50;
-        color: white;
-        padding: 1rem;
-        text-align: left;
-        font-weight: 600;
-      }
-      .standings-table td {
-        padding: 1rem;
-        border-bottom: 1px solid #eee;
-      }
-      .standings-table tr:hover {
-        background: #f8f9fa;
-      }
-      .rank-1 {
-        background: linear-gradient(135deg, #ffd700, #ffed4e);
-      }
-      .rank-2 {
-        background: linear-gradient(135deg, #c0c0c0, #e5e5e5);
-      }
-      .rank-3 {
-        background: linear-gradient(135deg, #cd7f32, #daa520);
-      }
-      .streak-positive {
-        color: #28a745;
-        font-weight: bold;
-      }
-      .streak-negative {
-        color: #dc3545;
-        font-weight: bold;
-      }
-      .section-title {
-        color: #2c3e50;
-        border-bottom: 3px solid #007bff;
-        padding-bottom: 0.5rem;
-        margin-bottom: 1rem;
+        h1 {
+          font-size: 2rem;
+        }
+
+        .controls {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        select,
+        button {
+          width: 100%;
+        }
+
+        table {
+          font-size: 0.9rem;
+        }
+
+        th,
+        td {
+          padding: 0.75rem 0.5rem;
+        }
+
+        .team-avatar,
+        .team-avatar-placeholder {
+          width: 32px;
+          height: 32px;
+          font-size: 1rem;
+        }
       }
     </style>
   </head>
@@ -208,86 +345,79 @@
 
       <div class="status" id="status">Status: Loading...</div>
 
-      <!-- Standings Table Section -->
-      <div class="standings-section">
-        <h2 class="section-title">📊 League Standings</h2>
-        <div class="controls">
-          <button onclick="refreshStandings()">Refresh Standings</button>
+      <!-- Password Modal -->
+      <div id="passwordModal" class="password-modal">
+        <div class="password-content">
+          <h3>🔒 Settings Access</h3>
+          <p>Enter password to access settings:</p>
+          <input
+            type="password"
+            id="passwordInput"
+            class="password-input"
+            placeholder="••••"
+            maxlength="4"
+            onkeypress="handlePasswordKeypress(event)"
+          />
+          <div class="password-buttons">
+            <button class="btn btn-primary" onclick="checkPassword()">
+              Enter
+            </button>
+            <button class="btn btn-secondary" onclick="closePasswordModal()">
+              Cancel
+            </button>
+          </div>
         </div>
-        <table class="standings-table" id="standingsTable">
+      </div>
+
+      <div class="standings-section">
+        <h2>🏆 League Standings</h2>
+        <div class="standings-controls">
+          <button id="refreshStandings">Refresh Standings</button>
+        </div>
+        <table>
           <thead>
             <tr>
               <th>Rank</th>
-              <th>Team Name</th>
-              <th>Wins</th>
-              <th>Losses</th>
+              <th>Team</th>
+              <th>W</th>
+              <th>L</th>
+              <th>T</th>
               <th>Streak</th>
               <th>Total Score</th>
             </tr>
           </thead>
           <tbody id="standingsBody">
-            <tr>
-              <td colspan="6" style="text-align: center; padding: 2rem">
-                Loading standings...
-              </td>
-            </tr>
+            <!-- Standings data will be populated here -->
           </tbody>
         </table>
       </div>
 
-      <!-- Weekly Points Chart Section -->
-      <div class="chart-section">
-        <h2 class="section-title">📈 Weekly Team Points</h2>
-        <div class="controls">
-          <label for="weekSelect">Select Week:</label>
-          <select id="weekSelect">
-            <option value="1">Week 1</option>
-            <option value="2">Week 2</option>
-            <option value="3">Week 3</option>
-            <option value="4">Week 4</option>
-            <option value="5">Week 5</option>
-            <option value="6">Week 6</option>
-            <option value="7">Week 7</option>
-            <option value="8">Week 8</option>
-            <option value="9">Week 9</option>
-            <option value="10">Week 10</option>
-            <option value="11">Week 11</option>
-            <option value="12">Week 12</option>
-            <option value="13">Week 13</option>
-            <option value="14">Week 14</option>
-            <option value="15">Week 15</option>
-            <option value="16">Week 16</option>
-            <option value="17">Week 17</option>
-            <option value="18">Week 18</option>
-          </select>
-          <button onclick="refreshData()">Refresh Chart</button>
-        </div>
-
-        <canvas id="teamPointsChart"></canvas>
+      <div class="controls">
+        <select id="weekSelect">
+          <option value="1">Week 1</option>
+          <option value="2">Week 2</option>
+          <option value="3">Week 3</option>
+          <option value="4">Week 4</option>
+          <option value="5">Week 5</option>
+          <option value="6">Week 6</option>
+          <option value="7">Week 7</option>
+          <option value="8">Week 8</option>
+          <option value="9">Week 9</option>
+          <option value="10">Week 10</option>
+          <option value="11">Week 11</option>
+          <option value="12">Week 12</option>
+          <option value="13">Week 13</option>
+          <option value="14">Week 14</option>
+          <option value="15">Week 15</option>
+          <option value="16">Week 16</option>
+          <option value="17">Week 17</option>
+          <option value="18">Week 18</option>
+        </select>
+        <button id="refreshData">Refresh Data</button>
       </div>
-    </div>
 
-    <!-- Password Modal -->
-    <div id="passwordModal" class="password-modal">
-      <div class="password-content">
-        <h3>🔒 Settings Access</h3>
-        <p>Enter password to access settings:</p>
-        <input
-          type="password"
-          id="passwordInput"
-          class="password-input"
-          placeholder="••••"
-          maxlength="4"
-          onkeypress="handlePasswordKeypress(event)"
-        />
-        <div class="password-buttons">
-          <button class="btn btn-primary" onclick="checkPassword()">
-            Enter
-          </button>
-          <button class="btn btn-secondary" onclick="closePasswordModal()">
-            Cancel
-          </button>
-        </div>
+      <div class="chart-container">
+        <canvas id="teamPointsChart"></canvas>
       </div>
     </div>
 

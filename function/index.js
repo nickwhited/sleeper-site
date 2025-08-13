@@ -29,6 +29,28 @@ async function fetchMatchups(week = 1) {
   );
 }
 
+// Fetch user profiles to get actual team names and avatars
+async function fetchUserProfiles(ownerIds) {
+  const users = [];
+  for (const ownerId of ownerIds) {
+    try {
+      const user = await fetchJson(
+        `https://api.sleeper.app/v1/user/${ownerId}`
+      );
+      users.push(user);
+    } catch (error) {
+      console.log(`Warning: Could not fetch user ${ownerId}:`, error.message);
+      // Fallback to a generic name if user fetch fails
+      users.push({
+        user_id: ownerId,
+        display_name: `Team ${ownerId.slice(-4)}`, // Use last 4 chars of user ID
+        avatar: null, // No avatar for fallback users
+      });
+    }
+  }
+  return users;
+}
+
 // Upload rows to BigQuery table
 async function uploadRows(tableId, rows) {
   if (!rows || rows.length === 0) {
@@ -59,14 +81,63 @@ exports.uploadLeagueData = async (req, res) => {
       } players, ${matchups.length} matchups`
     );
 
-    // Prepare data for BigQuery - Updated to match your table structure
-    const teamsData = teams.map((team) => ({
-      team_id: team.owner_id || `team_${team.roster_id}`, // Use owner_id as team_id, fallback to generated ID
-      team_name: `Team ${team.roster_id}`, // Generate team name if none exists
-      roster_id: team.roster_id.toString(), // Ensure it's a string
-      owner_id: team.owner_id || null,
-      players: team.players ? team.players.join(",") : "",
-    }));
+    // Get unique owner IDs to fetch user profiles
+    const ownerIds = [
+      ...new Set(teams.map((team) => team.owner_id).filter(Boolean)),
+    ];
+    console.log(`👥 Fetching user profiles for ${ownerIds.length} owners...`);
+
+    // Fetch user profiles to get actual team names and avatars
+    const users = await fetchUserProfiles(ownerIds);
+    console.log(`✅ Fetched ${users.length} user profiles`);
+
+    // Create a map of owner_id to user data for quick lookup
+    const userMap = {};
+    users.forEach((user) => {
+      userMap[user.user_id] = {
+        display_name: user.display_name,
+        avatar: user.avatar,
+      };
+    });
+
+    // Prepare data for BigQuery - Updated to use fallback logic and include avatars
+    const teamsData = teams.map((team) => {
+      // Priority: 1) User display name, 2) Generated team name, 3) Fallback
+      let teamName;
+      let avatarId = null;
+
+      if (team.owner_id && userMap[team.owner_id]) {
+        // Use the user's display name and avatar if available
+        teamName = userMap[team.owner_id].display_name;
+        avatarId = userMap[team.owner_id].avatar;
+        console.log(
+          `✅ Using display name for roster ${
+            team.roster_id
+          }: "${teamName}" (Avatar: ${avatarId ? "Yes" : "No"})`
+        );
+      } else if (team.owner_id) {
+        // Fallback: use last 4 chars of owner ID
+        teamName = `Team ${team.owner_id.slice(-4)}`;
+        console.log(
+          `⚠️ Using fallback name for roster ${team.roster_id}: "${teamName}"`
+        );
+      } else {
+        // Final fallback: generic team name
+        teamName = `Team ${team.roster_id}`;
+        console.log(
+          `🔄 Using generic name for roster ${team.roster_id}: "${teamName}"`
+        );
+      }
+
+      return {
+        team_id: team.owner_id || `team_${team.roster_id}`,
+        team_name: teamName, // Use the determined team name
+        roster_id: team.roster_id.toString(),
+        owner_id: team.owner_id || null,
+        players: team.players ? team.players.join(",") : "",
+        avatar_id: avatarId, // Include the avatar ID
+      };
+    });
 
     // For players, flatten the players object into an array
     const playersData = Object.values(players).map((p) => ({
@@ -92,15 +163,40 @@ exports.uploadLeagueData = async (req, res) => {
       `📝 Prepared data: ${teamsData.length} teams, ${playersData.length} players, ${matchupsData.length} matchups`
     );
 
+    // Log the actual team names and avatars being uploaded
+    console.log("🏈 Team names and avatars being uploaded:");
+    teamsData.forEach((team) => {
+      console.log(
+        `  Roster ${team.roster_id}: "${team.team_name}" (Avatar: ${
+          team.avatar_id ? "Yes" : "No"
+        })`
+      );
+    });
+
     // Upload all data to BigQuery tables
     await uploadRows("teams", teamsData);
     await uploadRows("players", playersData);
     await uploadRows("matchups", matchupsData);
 
     console.log("✅ All data uploaded successfully!");
-    res.status(200).send("League data fetched and uploaded successfully!");
+
+    // Return success response
+    res.status(200).json({
+      message: "Data uploaded successfully",
+      teams: teamsData.length,
+      players: playersData.length,
+      matchups: matchupsData.length,
+      teamNames: teamsData.map((t) => ({
+        roster: t.roster_id,
+        name: t.team_name,
+        avatar: t.avatar_id,
+      })),
+    });
   } catch (error) {
-    console.error("❌ Error in uploadLeagueData:", error);
-    res.status(500).send("Error fetching or uploading league data.");
+    console.error("❌ Error:", error);
+    res.status(500).json({
+      error: "Failed to upload data",
+      details: error.message,
+    });
   }
 };

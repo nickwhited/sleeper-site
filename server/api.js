@@ -6,60 +6,55 @@ const path = require("path");
 const app = express();
 const port = 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Initialize BigQuery with service account key
+// Initialize BigQuery client
 const bigquery = new BigQuery({
   projectId: "sleeper-league-nick",
   keyFilename: path.join(__dirname, "..", "service-account-key.json"),
 });
 
-const datasetId = "sleeper_league";
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", message: "Server is running" });
+});
 
 // API endpoint to get team points for a specific week
 app.get("/api/team-points/:week", async (req, res) => {
   try {
-    const week = parseInt(req.params.week);
-
+    const week = req.params.week;
     console.log(`🔍 Querying BigQuery for week ${week}...`);
 
-    // Updated query to match your actual table structure
     const query = `
       SELECT 
         t.team_name,
         COALESCE(m.points, 0) as points,
         t.roster_id,
-        t.team_id
-      FROM \`${datasetId}.teams\` t
-      LEFT JOIN \`${datasetId}.matchups\` m ON t.roster_id = m.roster_id AND m.week = @week
+        t.team_id,
+        MAX(t.avatar_id) as avatar_id
+      FROM \`sleeper_league.teams\` t
+      LEFT JOIN \`sleeper_league.matchups\` m ON t.roster_id = m.roster_id AND m.week = @week
+      GROUP BY t.team_name, m.points, t.roster_id, t.team_id
       ORDER BY points DESC
     `;
 
-    console.log(`📝 SQL Query: ${query}`);
+    console.log("📝 SQL Query:", query);
 
     const options = {
       query: query,
-      params: { week: week.toString() }, // Convert week to string to match your table
-      location: "US", // Adjust based on your BigQuery location
+      location: "US",
+      params: { week: week.toString() }, // Ensure week is a string
     };
 
-    console.log(`🚀 Executing BigQuery query...`);
+    console.log("🚀 Executing BigQuery query...");
     const [rows] = await bigquery.query(options);
 
     console.log(`✅ BigQuery returned ${rows.length} rows`);
-    console.log(`📊 Sample data:`, rows.slice(0, 2));
+    console.log("📊 Sample data:", rows.slice(0, 2));
 
-    res.json({
-      week: week,
-      teams: rows.map((row) => ({
-        teamName: row.team_name || "Unnamed Team",
-        points: parseFloat(row.points) || 0,
-        rosterId: row.roster_id,
-        teamId: row.team_id,
-      })),
-    });
+    res.json(rows);
   } catch (error) {
     console.error("❌ Error fetching team points:", error);
     console.error("🔍 Error details:", {
@@ -67,31 +62,7 @@ app.get("/api/team-points/:week", async (req, res) => {
       code: error.code,
       details: error.details,
     });
-    res.status(500).json({
-      error: "Failed to fetch team points",
-      details: error.message,
-      code: error.code,
-    });
-  }
-});
-
-// API endpoint to get all weeks available
-app.get("/api/weeks", async (req, res) => {
-  try {
-    const query = `
-      SELECT DISTINCT week 
-      FROM \`${datasetId}.matchups\` 
-      ORDER BY week
-    `;
-
-    const [rows] = await bigquery.query(query);
-
-    res.json({
-      weeks: rows.map((row) => row.week),
-    });
-  } catch (error) {
-    console.error("Error fetching weeks:", error);
-    res.status(500).json({ error: "Failed to fetch weeks" });
+    res.status(500).json({ error: "Failed to fetch team points" });
   }
 });
 
@@ -100,67 +71,61 @@ app.get("/api/team-standings", async (req, res) => {
   try {
     console.log("🏆 Fetching team standings from BigQuery...");
 
-    // Query only the fields that actually exist in the teams table
     const query = `
       SELECT 
         t.team_name,
         t.roster_id,
         t.team_id,
-        t.owner_id
-      FROM \`${datasetId}.teams\` t
-      ORDER BY t.team_name
+        t.owner_id,
+        MAX(t.avatar_id) as avatar_id
+      FROM \`sleeper_league.teams\` t
+      GROUP BY t.team_name, t.roster_id, t.team_id, t.owner_id
+      ORDER BY CAST(t.roster_id AS INT64)
     `;
 
-    console.log(`📝 SQL Query: ${query}`);
+    console.log("📝 SQL Query:", query);
 
     const options = {
       query: query,
-      location: "US", // Adjust based on your BigQuery location
+      location: "US",
     };
 
-    console.log(`🚀 Executing BigQuery query...`);
+    console.log("🚀 Executing BigQuery query...");
     const [rows] = await bigquery.query(options);
 
     console.log(`✅ BigQuery returned ${rows.length} rows for standings`);
-    console.log(`📊 Sample standings data:`, rows.slice(0, 2));
+    console.log("📊 Sample standings data:", rows.slice(0, 2));
 
-    // Since we don't have wins/losses data yet, create mock standings for now
-    // In the future, this will come from actual matchup data
-    const standings = rows.map((row, index) => {
-      // Mock data for demonstration (will be replaced with real data when season starts)
-      const mockWins = Math.floor(Math.random() * 4); // 0-3 wins
-      const mockLosses = 3 - mockWins; // 3 total games
-      const mockStreak = Math.floor(Math.random() * 7) - 3; // Random streak between -3 and +3
-      const mockTotalScore = Math.floor(Math.random() * 200) + 100; // Random score between 100-300
+    // Generate mock data for wins, losses, streak, and total_score
+    // In the future, this could come from actual matchup data
+    const standingsWithMockData = rows.map((team, index) => {
+      // Generate some realistic-looking mock data
+      const wins = Math.floor(Math.random() * 8) + 2; // 2-9 wins
+      const losses = Math.floor(Math.random() * 8) + 2; // 2-9 losses
+      const streak =
+        Math.random() > 0.5
+          ? `W${Math.floor(Math.random() * 3) + 1}`
+          : `L${Math.floor(Math.random() * 3) + 1}`;
+      const totalScore = Math.floor(Math.random() * 1000) + 800; // 800-1799 points
 
       return {
+        ...team,
+        wins,
+        losses,
+        ties: 0,
+        streak,
+        total_score: totalScore,
         rank: index + 1,
-        teamName: row.team_name || "Unnamed Team",
-        wins: mockWins,
-        losses: mockLosses,
-        ties: 0, // No ties in this mock data
-        streak: mockStreak,
-        totalScore: mockTotalScore,
-        rosterId: row.roster_id,
-        teamId: row.team_id,
-        ownerId: row.owner_id,
       };
     });
 
-    // Sort by mock wins first, then by total score
-    standings.sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins;
-      return b.totalScore - a.totalScore;
-    });
-
-    // Update ranks after sorting
-    standings.forEach((team, index) => {
+    // Sort by total score (descending) and update ranks
+    standingsWithMockData.sort((a, b) => b.total_score - a.total_score);
+    standingsWithMockData.forEach((team, index) => {
       team.rank = index + 1;
     });
 
-    res.json({
-      standings: standings,
-    });
+    res.json(standingsWithMockData);
   } catch (error) {
     console.error("❌ Error fetching team standings:", error);
     console.error("🔍 Error details:", {
@@ -168,11 +133,7 @@ app.get("/api/team-standings", async (req, res) => {
       code: error.code,
       details: error.details,
     });
-    res.status(500).json({
-      error: "Failed to fetch team standings",
-      details: error.message,
-      code: error.code,
-    });
+    res.status(500).json({ error: "Failed to fetch team standings" });
   }
 });
 
@@ -199,8 +160,8 @@ app.get("/api/league-info", async (req, res) => {
     });
 
     const leagueInfo = {
-      name: sleeperData.name || "Fantasy League Dashboard",
-      season: sleeperData.season || "2025",
+      name: sleeperData.name,
+      season: sleeperData.season,
       status: sleeperData.status || "Active",
       totalTeams: sleeperData.total_rosters || 10,
       leagueId: LEAGUE_ID,
@@ -218,10 +179,9 @@ app.get("/api/league-info", async (req, res) => {
 
       const query = `
         SELECT 
-          COUNT(*) as total_teams
-        FROM \`${datasetId}.teams\`
+          COUNT(DISTINCT team_id) as total_teams
+        FROM \`sleeper_league.teams\`
       `;
-
       const options = {
         query: query,
         location: "US",
@@ -251,11 +211,7 @@ app.get("/api/league-info", async (req, res) => {
   }
 });
 
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.json({ status: "OK", message: "Sleeper League API is running" });
-});
-
+// Start server
 app.listen(port, () => {
   console.log(`🚀 Server running on http://localhost:${port}`);
   console.log(`📊 Health check: http://localhost:${port}/health`);
