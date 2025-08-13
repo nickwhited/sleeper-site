@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script src="script.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fantasy League Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js for graphs -->
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        background-color: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        position: relative;
+      }
+
+      /* Settings Button Styles */
+      .settings-button {
+        position: absolute;
+        top: 2rem;
+        right: 2rem;
+        background: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        cursor: pointer;
+        font-size: 1.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+      .settings-button:hover {
+        background: #5a6268;
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Password Modal Styles */
+      .password-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+      .password-content {
+        background-color: white;
+        margin: 15% auto;
+        padding: 2rem;
+        border-radius: 10px;
+        width: 300px;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      }
+      .password-input {
+        width: 100%;
+        padding: 0.75rem;
+        margin: 1rem 0;
+        border: 2px solid #ddd;
+        border-radius: 5px;
+        font-size: 1rem;
+        text-align: center;
+        letter-spacing: 0.5rem;
+      }
+      .password-input:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+      .password-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 1rem;
+      }
+      .btn {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.3s;
+      }
+      .btn-primary {
+        background: #007bff;
+        color: white;
+      }
+      .btn-primary:hover {
+        background: #0056b3;
+      }
+      .btn-secondary {
+        background: #6c757d;
+        color: white;
+      }
+      .btn-secondary:hover {
+        background: #5a6268;
+      }
+
+      .controls {
+        margin-bottom: 2rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+      }
+      select,
+      button {
+        padding: 0.5rem 1rem;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 1rem;
+      }
+      button {
+        background: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+      canvas {
+        max-width: 100%;
+        margin-bottom: 2rem;
+      }
+      .status {
+        padding: 1rem;
+        background: #e9ecef;
+        border-radius: 5px;
+        margin-bottom: 1rem;
+      }
+
+      /* Standings Table Styles */
+      .standings-section {
+        margin-bottom: 3rem;
+      }
+      .standings-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .standings-table th {
+        background: #2c3e50;
+        color: white;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+      }
+      .standings-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+      }
+      .standings-table tr:hover {
+        background: #f8f9fa;
+      }
+      .rank-1 {
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+      }
+      .rank-2 {
+        background: linear-gradient(135deg, #c0c0c0, #e5e5e5);
+      }
+      .rank-3 {
+        background: linear-gradient(135deg, #cd7f32, #daa520);
+      }
+      .streak-positive {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .streak-negative {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .section-title {
+        color: #2c3e50;
+        border-bottom: 3px solid #007bff;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Settings Button -->
+      <button
+        class="settings-button"
+        onclick="showPasswordModal()"
+        title="Settings"
+      >
+        ⚙️
+      </button>
+
+      <h1>🏈 Fantasy League Dashboard</h1>
+
+      <div class="status" id="status">Status: Loading...</div>
+
+      <!-- Standings Table Section -->
+      <div class="standings-section">
+        <h2 class="section-title">📊 League Standings</h2>
+        <div class="controls">
+          <button onclick="refreshStandings()">Refresh Standings</button>
+        </div>
+        <table class="standings-table" id="standingsTable">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Team Name</th>
+              <th>Wins</th>
+              <th>Losses</th>
+              <th>Streak</th>
+              <th>Total Score</th>
+            </tr>
+          </thead>
+          <tbody id="standingsBody">
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 2rem">
+                Loading standings...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Weekly Points Chart Section -->
+      <div class="chart-section">
+        <h2 class="section-title">📈 Weekly Team Points</h2>
+        <div class="controls">
+          <label for="weekSelect">Select Week:</label>
+          <select id="weekSelect">
+            <option value="1">Week 1</option>
+            <option value="2">Week 2</option>
+            <option value="3">Week 3</option>
+            <option value="4">Week 4</option>
+            <option value="5">Week 5</option>
+            <option value="6">Week 6</option>
+            <option value="7">Week 7</option>
+            <option value="8">Week 8</option>
+            <option value="9">Week 9</option>
+            <option value="10">Week 10</option>
+            <option value="11">Week 11</option>
+            <option value="12">Week 12</option>
+            <option value="13">Week 13</option>
+            <option value="14">Week 14</option>
+            <option value="15">Week 15</option>
+            <option value="16">Week 16</option>
+            <option value="17">Week 17</option>
+            <option value="18">Week 18</option>
+          </select>
+          <button onclick="refreshData()">Refresh Chart</button>
+        </div>
+
+        <canvas id="teamPointsChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Password Modal -->
+    <div id="passwordModal" class="password-modal">
+      <div class="password-content">
+        <h3>🔒 Settings Access</h3>
+        <p>Enter password to access settings:</p>
+        <input
+          type="password"
+          id="passwordInput"
+          class="password-input"
+          placeholder="••••"
+          maxlength="4"
+          onkeypress="handlePasswordKeypress(event)"
+        />
+        <div class="password-buttons">
+          <button class="btn btn-primary" onclick="checkPassword()">
+            Enter
+          </button>
+          <button class="btn btn-secondary" onclick="closePasswordModal()">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

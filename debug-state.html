@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debug State Endpoint Issue</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      .log {
+        background: #f0f0f0;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .error {
+        color: #dc3545;
+      }
+      .success {
+        color: #28a745;
+      }
+      .warning {
+        color: #ffc107;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔍 Debug State Endpoint Issue</h1>
+
+    <div>
+      <button onclick="testLeagueState()">Test League State Endpoint</button>
+      <button onclick="testAllEndpoints()">Test All Endpoints</button>
+      <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <script>
+      const LEAGUE_ID = "1260317227861692416";
+      const BASE_URL = "https://api.sleeper.app/v1";
+
+      function log(message, type = "info") {
+        const logElement = document.getElementById("log");
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement("div");
+        logEntry.innerHTML = `<span style="color: #6c757d;">[${timestamp}]</span> <span class="${type}">${message}</span>`;
+        logElement.appendChild(logEntry);
+        logElement.scrollTop = logElement.scrollHeight;
+        console.log(message);
+      }
+
+      async function testLeagueState() {
+        log("=== Testing League State Endpoint ===", "info");
+        log(`League ID: ${LEAGUE_ID}`, "info");
+        log(`Full URL: ${BASE_URL}/league/${LEAGUE_ID}/state`, "info");
+
+        try {
+          const response = await fetch(`${BASE_URL}/league/${LEAGUE_ID}/state`);
+          log(
+            `Response Status: ${response.status}`,
+            response.ok ? "success" : "error"
+          );
+          log(`Response Status Text: ${response.statusText}`, "info");
+
+          if (response.ok) {
+            const data = await response.json();
+            log(
+              `✅ League State Data: ${JSON.stringify(data, null, 2)}`,
+              "success"
+            );
+          } else if (response.status === 404) {
+            log(`⚠️ League State Endpoint Not Found (404)`, "warning");
+            log(`This is normal for some leagues`, "info");
+          } else {
+            log(
+              `❌ Unexpected Error: ${response.status} - ${response.statusText}`,
+              "error"
+            );
+          }
+        } catch (error) {
+          log(`❌ Network/Other Error: ${error.message}`, "error");
+        }
+      }
+
+      async function testAllEndpoints() {
+        log("=== Testing All Endpoints ===", "info");
+
+        const endpoints = [
+          { name: "League Info", url: `${BASE_URL}/league/${LEAGUE_ID}` },
+          {
+            name: "League State",
+            url: `${BASE_URL}/league/${LEAGUE_ID}/state`,
+          },
+          { name: "Rosters", url: `${BASE_URL}/league/${LEAGUE_ID}/rosters` },
+          { name: "Players", url: `${BASE_URL}/players/nfl` },
+          { name: "Draft Info", url: `${BASE_URL}/league/${LEAGUE_ID}/drafts` },
+        ];
+
+        for (const endpoint of endpoints) {
+          log(`\n--- Testing ${endpoint.name} ---`, "info");
+          log(`URL: ${endpoint.url}`, "info");
+
+          try {
+            const response = await fetch(endpoint.url);
+            if (response.ok) {
+              log(
+                `✅ ${endpoint.name}: SUCCESS (${response.status})`,
+                "success"
+              );
+            } else {
+              log(`❌ ${endpoint.name}: FAILED (${response.status})`, "error");
+            }
+          } catch (error) {
+            log(`❌ ${endpoint.name}: ERROR - ${error.message}`, "error");
+          }
+        }
+      }
+
+      function clearLog() {
+        document.getElementById("log").innerHTML = "";
+      }
+
+      // Auto-test on load
+      window.addEventListener("load", () => {
+        log("Page loaded. Ready to test endpoints.", "info");
+        log(
+          "If you see errors for /state/<sport>, they should appear below:",
+          "warning"
+        );
+      });
+
+      // Monitor all fetch requests
+      const originalFetch = window.fetch;
+      window.fetch = function (...args) {
+        const url = args[0];
+        log(`🔍 Fetch Request: ${url}`, "info");
+        return originalFetch.apply(this, args);
+      };
+    </script>
+  </body>
+</html>

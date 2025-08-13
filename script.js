@@ -1,0 +1,1059 @@
+// Sleeper API Fantasy Football League Data Fetcher
+// Corrected version with proper league ID format and error handling
+
+// Configuration
+const LEAGUE_ID = "1260317227861692416"; // Just the numeric ID, not the full URL
+const BASE_URL = "https://api.sleeper.app/v1";
+
+// Utility function to check if API response is valid
+function isValidResponse(response) {
+  return response.ok && response.status !== 404;
+}
+
+// Fetch league information
+async function getLeagueData(leagueId) {
+  try {
+    console.log(`Fetching league data for ID: ${leagueId}`);
+    const response = await fetch(`${BASE_URL}/league/${leagueId}`);
+
+    if (!isValidResponse(response)) {
+      if (response.status === 404) {
+        throw new Error(
+          `League not found. Please verify the league ID: ${leagueId}`
+        );
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("League Data Loaded:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching league data:", error);
+    throw error;
+  }
+}
+
+// Fetch rosters for the league
+async function getRosters(leagueId) {
+  try {
+    console.log(`Fetching rosters for league ID: ${leagueId}`);
+    const response = await fetch(`${BASE_URL}/league/${leagueId}/rosters`);
+
+    if (!isValidResponse(response)) {
+      if (response.status === 404) {
+        throw new Error(`Rosters not found for league ID: ${leagueId}`);
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("Rosters data:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching rosters:", error);
+    throw error;
+  }
+}
+
+// Fetch user info by username or user ID
+async function getUser(userIdOrUsername) {
+  try {
+    console.log(`Fetching user info for: ${userIdOrUsername}`);
+    const response = await fetch(`${BASE_URL}/user/${userIdOrUsername}`);
+
+    if (!isValidResponse(response)) {
+      if (response.status === 404) {
+        throw new Error(`User not found: ${userIdOrUsername}`);
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("User data:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    throw error;
+  }
+}
+
+// Fetch all NFL players
+async function getPlayers() {
+  try {
+    console.log("Fetching all NFL players...");
+    const response = await fetch(`${BASE_URL}/players/nfl`);
+
+    if (!isValidResponse(response)) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("Players data loaded successfully");
+    return data;
+  } catch (error) {
+    console.error("Error fetching players:", error);
+    throw error;
+  }
+}
+
+// Fetch matchups for a specific league and week
+async function getMatchups(leagueId, week) {
+  try {
+    console.log(`Fetching matchups for league ID: ${leagueId}, week: ${week}`);
+    const response = await fetch(
+      `${BASE_URL}/league/${leagueId}/matchups/${week}`
+    );
+
+    if (!isValidResponse(response)) {
+      if (response.status === 404) {
+        throw new Error(
+          `Matchups not found for league ID: ${leagueId}, week: ${week}`
+        );
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log(`Matchups for week ${week}:`, data);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching matchups for week ${week}:`, error);
+    throw error;
+  }
+}
+
+// Fetch league state (current week, season info, etc.)
+async function getLeagueState(leagueId) {
+  try {
+    console.log(`Fetching league state for ID: ${leagueId}`);
+    const response = await fetch(`${BASE_URL}/league/${leagueId}/state`);
+
+    if (!isValidResponse(response)) {
+      if (response.status === 404) {
+        console.warn(
+          `League state endpoint not available for league ID: ${leagueId}`
+        );
+        console.log(
+          "This is normal for some leagues. Using fallback approach..."
+        );
+
+        // Return a fallback state object
+        return {
+          week: null,
+          season_type: "regular",
+          previous_season: null,
+          season: new Date().getFullYear().toString(),
+          status: "in_season",
+        };
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("League state:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching league state:", error);
+
+    // Return fallback state if there's any error
+    console.log("Using fallback league state...");
+    return {
+      week: null,
+      season_type: "regular",
+      previous_season: null,
+      season: new Date().getFullYear().toString(),
+      status: "in_season",
+    };
+  }
+}
+
+// Alternative function to get current week from matchups
+async function getCurrentWeekFromMatchups(leagueId) {
+  try {
+    console.log(
+      `Attempting to determine current week from matchups for league ID: ${leagueId}`
+    );
+
+    // Try to get matchups for the current season
+    const currentYear = new Date().getFullYear();
+    let currentWeek = 1;
+
+    // Try weeks 1-18 (typical NFL season)
+    for (let week = 1; week <= 18; week++) {
+      try {
+        const response = await fetch(
+          `${BASE_URL}/league/${leagueId}/matchups/${week}`
+        );
+        if (response.ok) {
+          const matchups = await response.json();
+          if (matchups && matchups.length > 0) {
+            // Check if this week has actual matchup data
+            const hasValidMatchups = matchups.some(
+              (matchup) =>
+                matchup.points &&
+                matchup.points.length > 0 &&
+                matchup.points.some((points) => points > 0)
+            );
+
+            if (hasValidMatchups) {
+              currentWeek = week;
+              console.log(`Found valid matchups for week ${week}`);
+            }
+          }
+        }
+      } catch (error) {
+        // Continue to next week if this one fails
+        continue;
+      }
+    }
+
+    console.log(`Determined current week: ${currentWeek}`);
+    return currentWeek;
+  } catch (error) {
+    console.warn(
+      "Could not determine current week from matchups, using default week 1"
+    );
+    return 1;
+  }
+}
+
+// Fetch draft information
+async function getDraft(leagueId) {
+  try {
+    console.log(`Fetching draft info for league ID: ${leagueId}`);
+    const response = await fetch(`${BASE_URL}/league/${leagueId}/drafts`);
+
+    if (!isValidResponse(response)) {
+      if (response.status === 404) {
+        throw new Error(`Draft info not found for league ID: ${leagueId}`);
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("Draft data:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching draft info:", error);
+    throw error;
+  }
+}
+
+// Main function to fetch all league data
+async function fetchAllLeagueData(leagueId = LEAGUE_ID, week = 1) {
+  try {
+    console.log("=== Starting comprehensive league data fetch ===");
+
+    // First, verify the league exists by getting basic info
+    const leagueData = await getLeagueData(leagueId);
+
+    // Get league state to determine current week (with fallback)
+    let leagueState;
+    let currentWeek = week;
+
+    try {
+      leagueState = await getLeagueState(leagueId);
+      currentWeek = leagueState.week || week;
+    } catch (error) {
+      console.log(
+        "League state unavailable, trying to determine week from matchups..."
+      );
+      currentWeek = await getCurrentWeekFromMatchups(leagueId);
+      leagueState = {
+        week: currentWeek,
+        season_type: "regular",
+        season: leagueData.season || new Date().getFullYear().toString(),
+        status: "in_season",
+      };
+    }
+
+    console.log(`League: ${leagueData.name}`);
+    console.log(`Season: ${leagueData.season}`);
+    console.log(`Current Week: ${currentWeek}`);
+
+    // Fetch all data in parallel for better performance
+    const [rosters, players, matchups, draft] = await Promise.all([
+      getRosters(leagueId),
+      getPlayers(),
+      getMatchups(leagueId, currentWeek),
+      getDraft(leagueId),
+    ]);
+
+    // Get user info for roster owners
+    const userPromises = rosters.map((roster) => getUser(roster.owner_id));
+    const users = await Promise.all(userPromises);
+
+    console.log("=== All data fetched successfully ===");
+
+    return {
+      league: leagueData,
+      state: leagueState,
+      rosters,
+      players,
+      matchups,
+      draft,
+      users,
+    };
+  } catch (error) {
+    console.error("Error fetching all league data:", error);
+
+    // Provide helpful error messages
+    if (error.message.includes("League not found")) {
+      console.error("Troubleshooting tips:");
+      console.error("1. Verify the league ID is correct");
+      console.error("2. Check if the league is public or you have access");
+      console.error("3. Ensure the league is from the current or past seasons");
+      console.error("4. Try using the Sleeper app to confirm the league ID");
+    }
+
+    throw error;
+  }
+}
+
+// Data extraction functions
+function extractTeams(rosters) {
+  return rosters.map((roster) => ({
+    team_id: roster.owner_id,
+    roster_id: roster.roster_id,
+    team_name: roster.settings?.name || "Unnamed Team",
+    wins: roster.settings?.wins || 0,
+    losses: roster.settings?.losses || 0,
+    ties: roster.settings?.ties || 0,
+    points_for: roster.settings?.fpts || 0,
+    points_against: roster.settings?.fpts_decimal || 0,
+  }));
+}
+
+function extractPlayers(playersData) {
+  return Object.values(playersData)
+    .filter((player) => player.active) // Only active players
+    .map((player) => ({
+      player_id: player.player_id,
+      name: player.full_name,
+      position: player.position,
+      team: player.team,
+      search_rank: player.search_rank,
+      fantasy_positions: player.fantasy_positions,
+    }));
+}
+
+function extractMatchups(matchups) {
+  const rows = [];
+  matchups.forEach((matchup) => {
+    if (matchup.starters && matchup.players) {
+      matchup.starters.forEach((teamPlayerId) => {
+        // We won't flatten players here for now; just store matchup info for teams
+      });
+    }
+    if (matchup.roster_id && Array.isArray(matchup.roster_id)) {
+      matchup.roster_id.forEach((teamId) => {
+        rows.push({
+          matchup_id: matchup.matchup_id,
+          week: matchup.week,
+          team_id: teamId,
+          points: matchup.points
+            ? matchup.points[matchup.roster_id.indexOf(teamId)]
+            : null,
+        });
+      });
+    }
+  });
+  return rows;
+}
+
+// Function to test individual endpoints
+async function testEndpoints(leagueId = LEAGUE_ID) {
+  console.log("=== Testing Sleeper API Endpoints ===");
+
+  const endpoints = [
+    { name: "League Info", func: () => getLeagueData(leagueId) },
+    {
+      name: "League State",
+      func: () => getLeagueState(leagueId),
+      optional: true,
+    },
+    { name: "Rosters", func: () => getRosters(leagueId) },
+    { name: "Players", func: () => getPlayers() },
+    { name: "Draft Info", func: () => getDraft(leagueId) },
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`\n--- Testing ${endpoint.name} ---`);
+      await endpoint.func();
+      console.log(`✅ ${endpoint.name}: SUCCESS`);
+    } catch (error) {
+      if (endpoint.optional) {
+        console.log(`⚠️  ${endpoint.name}: OPTIONAL - ${error.message}`);
+      } else {
+        console.error(`❌ ${endpoint.name}: FAILED - ${error.message}`);
+      }
+    }
+  }
+}
+
+// Function to handle cases where league endpoint is not available
+async function handleLeagueUnavailable(leagueId) {
+  console.log("League endpoint unavailable, trying alternative approaches...");
+
+  try {
+    // Try to get user info first to verify API is working
+    const testUser = await getUser("test");
+    console.log("API is working, but league may be private or invalid");
+
+    // Alternative: Try to search for leagues by name or other criteria
+    // Note: Sleeper doesn't have a public league search endpoint
+
+    return {
+      error: "League not accessible",
+      possibleReasons: [
+        "League ID is incorrect",
+        "League is private and requires authentication",
+        "League has been deleted or archived",
+        "League is from a future season that hasn't started",
+      ],
+      suggestions: [
+        "Verify the league ID in the Sleeper app",
+        "Check if you need to be logged in to access this league",
+        "Confirm the league is from the current or past season",
+      ],
+    };
+  } catch (error) {
+    return {
+      error: "API endpoint completely unavailable",
+      message: error.message,
+    };
+  }
+}
+
+// Function to manually test league state endpoint with detailed debugging
+async function debugLeagueState(leagueId = LEAGUE_ID) {
+  console.log(`=== Debugging League State Endpoint ===`);
+  console.log(`League ID: ${leagueId}`);
+  console.log(`Full URL: ${BASE_URL}/league/${leagueId}/state`);
+
+  try {
+    const response = await fetch(`${BASE_URL}/league/${leagueId}/state`);
+    console.log(`Response Status: ${response.status}`);
+    console.log(`Response Status Text: ${response.statusText}`);
+    console.log(
+      `Response Headers:`,
+      Object.fromEntries(response.headers.entries())
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`✅ League State Data:`, data);
+      return data;
+    } else if (response.status === 404) {
+      console.log(`❌ League State Endpoint Not Found (404)`);
+      console.log(`This could mean:`);
+      console.log(`1. The league doesn't have a state endpoint`);
+      console.log(`2. The league is from a different season`);
+      console.log(`3. The league structure is different`);
+
+      // Try to get basic league info to understand the structure
+      try {
+        const leagueInfo = await getLeagueData(leagueId);
+        console.log(`\nLeague Info Available:`);
+        console.log(`- Name: ${leagueInfo.name}`);
+        console.log(`- Season: ${leagueInfo.season}`);
+        console.log(`- Settings:`, leagueInfo.settings);
+        console.log(`- Metadata:`, leagueInfo.metadata);
+      } catch (leagueError) {
+        console.log(`Could not fetch league info:`, leagueError.message);
+      }
+
+      return null;
+    } else {
+      console.log(
+        `❌ Unexpected Error: ${response.status} - ${response.statusText}`
+      );
+      return null;
+    }
+  } catch (error) {
+    console.error(`❌ Network/Other Error:`, error.message);
+    return null;
+  }
+}
+
+// Initialize and test
+async function initialize() {
+  try {
+    console.log("=== Sleeper API Fantasy Football Data Fetcher ===");
+    console.log(`League ID: ${LEAGUE_ID}`);
+    console.log(`Base URL: ${BASE_URL}`);
+
+    // Test individual endpoints first
+    await testEndpoints();
+
+    // If all tests pass, fetch comprehensive data
+    console.log("\n=== Fetching comprehensive league data ===");
+    const allData = await fetchAllLeagueData();
+
+    // Extract clean data for processing
+    const teams = extractTeams(allData.rosters);
+    const playersArray = extractPlayers(allData.players);
+    const matchupsArray = extractMatchups(allData.matchups);
+
+    console.log("\n=== Extracted Data Summary ===");
+    console.log(`Teams: ${teams.length}`);
+    console.log(`Players: ${playersArray.length}`);
+    console.log(`Matchups: ${matchupsArray.length}`);
+
+    return allData;
+  } catch (error) {
+    console.error("Initialization failed:", error);
+
+    // Try alternative approach
+    if (error.message.includes("League not found")) {
+      const alternative = await handleLeagueUnavailable(LEAGUE_ID);
+      console.log("Alternative approach result:", alternative);
+    }
+
+    throw error;
+  }
+}
+
+// Export functions for use in other modules
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    getLeagueData,
+    getRosters,
+    getUser,
+    getPlayers,
+    getMatchups,
+    getLeagueState,
+    getDraft,
+    fetchAllLeagueData,
+    extractTeams,
+    extractPlayers,
+    extractMatchups,
+    testEndpoints,
+    handleLeagueUnavailable,
+    debugLeagueState,
+    initialize,
+  };
+}
+
+// Auto-initialize if running in browser
+if (typeof window !== "undefined") {
+  // Wait for DOM to be ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeChart);
+  } else {
+    initializeChart();
+  }
+}
+// Example: Fetch team points from your backend (or mock data)
+async function fetchTeamPoints(week = 1) {
+  try {
+    // Call your real API server
+    const response = await fetch(
+      `http://localhost:3000/api/team-points/${week}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log(`Fetched team points for week ${week}:`, data);
+
+    return data.teams || [];
+  } catch (error) {
+    console.error("Error fetching team points:", error);
+
+    // Fallback to mock data if server is not running
+    console.log("Using fallback mock data...");
+    return [
+      { teamName: "Team Alpha", points: 95 },
+      { teamName: "Team Bravo", points: 88 },
+      { teamName: "Team Charlie", points: 76 },
+    ];
+  }
+}
+
+let currentChart = null; // Keep track of the current chart
+
+async function renderTeamPointsChart(week = 1) {
+  const data = await fetchTeamPoints(week);
+
+  // Update status
+  const statusElement = document.getElementById("status");
+  if (statusElement) {
+    statusElement.textContent = `Status: Showing Week ${week} data (${data.length} teams)`;
+  }
+
+  const ctx = document.getElementById("teamPointsChart").getContext("2d");
+
+  // Destroy previous chart if it exists
+  if (currentChart) {
+    currentChart.destroy();
+  }
+
+  currentChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.map((d) => d.teamName),
+      datasets: [
+        {
+          label: `Week ${week} Points`,
+          data: data.map((d) => d.points),
+          backgroundColor: "rgba(54, 162, 235, 0.7)",
+          borderColor: "rgba(54, 162, 235, 1)",
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: "Fantasy Points",
+          },
+        },
+        x: {
+          title: {
+            display: true,
+            text: "Teams",
+          },
+        },
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: `Week ${week} Team Points`,
+        },
+      },
+    },
+  });
+}
+
+// Function to refresh data for the selected week
+async function refreshData() {
+  const weekSelect = document.getElementById("weekSelect");
+  const selectedWeek = parseInt(weekSelect.value);
+
+  console.log(`Refreshing data for week ${selectedWeek}`);
+  await renderTeamPointsChart(selectedWeek);
+}
+
+// Initialize the chart when the page loads
+async function initializeChart() {
+  const weekSelect = document.getElementById("weekSelect");
+
+  // Add event listener for week changes
+  weekSelect.addEventListener("change", async (event) => {
+    const selectedWeek = parseInt(event.target.value);
+    await renderTeamPointsChart(selectedWeek);
+  });
+
+  // Load league info, standings, and initial chart
+  try {
+    console.log("🚀 Initializing dashboard...");
+
+    // Load league info first (this will update the title)
+    await fetchLeagueInfo();
+
+    // Then load standings
+    await refreshStandings();
+
+    // Finally load the chart
+    await renderTeamPointsChart(1);
+
+    console.log("✅ Dashboard initialized successfully!");
+  } catch (error) {
+    console.error("❌ Error initializing dashboard:", error);
+  }
+}
+
+// Function to fetch team standings from BigQuery
+async function fetchTeamStandings() {
+  try {
+    console.log("🏆 Fetching team standings...");
+
+    // Call your API server for standings data
+    const response = await fetch("http://localhost:3000/api/team-standings");
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Standings data fetched:", data);
+
+    return data.standings || [];
+  } catch (error) {
+    console.error("❌ Error fetching standings:", error);
+
+    // Fallback to mock data if server is not running
+    console.log("Using fallback mock standings...");
+    return [
+      {
+        rank: 1,
+        teamName: "Team Alpha",
+        wins: 3,
+        losses: 0,
+        streak: 3,
+        totalScore: 385.2,
+      },
+      {
+        rank: 2,
+        teamName: "Team Bravo",
+        wins: 2,
+        losses: 1,
+        streak: 1,
+        totalScore: 342.8,
+      },
+      {
+        rank: 3,
+        teamName: "Team Charlie",
+        wins: 2,
+        losses: 1,
+        streak: -1,
+        totalScore: 318.5,
+      },
+      {
+        rank: 4,
+        teamName: "Team Delta",
+        wins: 1,
+        losses: 2,
+        streak: -2,
+        totalScore: 295.1,
+      },
+      {
+        rank: 5,
+        teamName: "Team Echo",
+        wins: 1,
+        losses: 2,
+        streak: -1,
+        totalScore: 287.6,
+      },
+      {
+        rank: 6,
+        teamName: "Team Foxtrot",
+        wins: 1,
+        losses: 2,
+        streak: 1,
+        totalScore: 276.3,
+      },
+      {
+        rank: 7,
+        teamName: "Team Golf",
+        wins: 0,
+        losses: 3,
+        streak: -3,
+        totalScore: 254.9,
+      },
+      {
+        rank: 8,
+        teamName: "Team Hotel",
+        wins: 0,
+        losses: 3,
+        streak: -3,
+        totalScore: 241.7,
+      },
+      {
+        rank: 9,
+        teamName: "Team India",
+        wins: 0,
+        losses: 3,
+        streak: -3,
+        totalScore: 228.4,
+      },
+      {
+        rank: 10,
+        teamName: "Team Juliet",
+        wins: 0,
+        losses: 3,
+        streak: -3,
+        totalScore: 215.2,
+      },
+    ];
+  }
+}
+
+// Function to render the standings table
+function renderStandingsTable(standings) {
+  const tbody = document.getElementById("standingsBody");
+
+  if (!tbody) {
+    console.error("Standings table body not found");
+    return;
+  }
+
+  // Clear existing content
+  tbody.innerHTML = "";
+
+  if (!standings || standings.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">
+          No standings data available
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  // Sort by rank
+  const sortedStandings = standings.sort((a, b) => a.rank - b.rank);
+
+  // Create table rows
+  sortedStandings.forEach((team, index) => {
+    const row = document.createElement("tr");
+
+    // Add rank-specific styling
+    if (team.rank === 1) row.classList.add("rank-1");
+    else if (team.rank === 2) row.classList.add("rank-2");
+    else if (team.rank === 3) row.classList.add("rank-3");
+
+    // Format streak with color
+    const streakClass = team.streak > 0 ? "streak-positive" : "streak-negative";
+    const streakText = team.streak > 0 ? `+${team.streak}` : team.streak;
+
+    row.innerHTML = `
+      <td><strong>${team.rank}</strong></td>
+      <td><strong>${team.teamName}</strong></td>
+      <td>${team.wins}</td>
+      <td>${team.losses}</td>
+      <td class="${streakClass}">${streakText}</td>
+      <td><strong>${team.totalScore.toFixed(1)}</strong></td>
+    `;
+
+    tbody.appendChild(row);
+  });
+
+  // Update status
+  const statusElement = document.getElementById("status");
+  if (statusElement) {
+    statusElement.textContent = `Status: Standings loaded (${standings.length} teams)`;
+  }
+}
+
+// Function to refresh standings
+async function refreshStandings() {
+  try {
+    console.log("🔄 Refreshing standings...");
+    const standings = await fetchTeamStandings();
+    renderStandingsTable(standings);
+  } catch (error) {
+    console.error("Error refreshing standings:", error);
+  }
+}
+
+// Function to fetch league information and update the dashboard title
+async function fetchLeagueInfo() {
+  try {
+    console.log("🏈 Fetching league info...");
+
+    const response = await fetch("http://localhost:3000/api/league-info");
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ League info fetched:", data);
+
+    // Update the dashboard title
+    updateDashboardTitle(data.league);
+
+    return data.league;
+  } catch (error) {
+    console.error("❌ Error fetching league info:", error);
+
+    // Use fallback title
+    updateDashboardTitle({
+      name: "Fantasy League Dashboard",
+      season: "2025",
+      status: "Offline",
+    });
+
+    return null;
+  }
+}
+
+// Function to update the dashboard title
+function updateDashboardTitle(leagueInfo) {
+  const titleElement = document.querySelector("h1");
+  if (titleElement && leagueInfo) {
+    titleElement.innerHTML = `🏈 ${leagueInfo.name} Dashboard`;
+
+    // Also update the page title
+    document.title = `${leagueInfo.name} Dashboard`;
+
+    console.log(`✅ Dashboard title updated to: ${leagueInfo.name}`);
+  }
+}
+
+// Password protection functions
+function showPasswordModal() {
+  document.getElementById("passwordModal").style.display = "block";
+  document.getElementById("passwordInput").focus();
+}
+
+function closePasswordModal() {
+  document.getElementById("passwordModal").style.display = "none";
+  document.getElementById("passwordInput").value = "";
+}
+
+function checkPassword() {
+  const password = document.getElementById("passwordInput").value;
+  if (password === "3232") {
+    closePasswordModal();
+    openSettingsPage();
+  } else {
+    alert("❌ Incorrect password!");
+    document.getElementById("passwordInput").value = "";
+    document.getElementById("passwordInput").focus();
+  }
+}
+
+function handlePasswordKeypress(event) {
+  if (event.key === "Enter") {
+    checkPassword();
+  } else if (event.key === "Escape") {
+    closePasswordModal();
+  }
+}
+
+function openSettingsPage() {
+  // Create and show the settings page
+  showSettingsDashboard();
+}
+
+// Settings dashboard functions
+function showSettingsDashboard() {
+  // Hide the main dashboard
+  document.querySelector(".container").style.display = "none";
+
+  // Create and show settings dashboard
+  const settingsHTML = `
+    <div class="settings-dashboard">
+      <div class="settings-header">
+        <button class="back-button" onclick="backToMainDashboard()">← Back to Dashboard</button>
+        <h1>⚙️ Settings Dashboard</h1>
+      </div>
+      
+      <div class="settings-grid">
+        <div class="settings-card" onclick="openTestSite()">
+          <div class="card-icon">🧪</div>
+          <h3>Test Site</h3>
+          <p>Access Test.html for site testing</p>
+        </div>
+        
+        <div class="settings-card">
+          <div class="card-icon">🔧</div>
+          <h3>Settings 2</h3>
+          <p>Placeholder for future settings</p>
+        </div>
+        
+        <div class="settings-card">
+          <div class="card-icon">⚡</div>
+          <h3>Settings 3</h3>
+          <p>Placeholder for future settings</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Add settings styles
+  addSettingsStyles();
+
+  // Insert settings dashboard
+  document.body.insertAdjacentHTML("beforeend", settingsHTML);
+}
+
+function backToMainDashboard() {
+  // Remove settings dashboard
+  const settingsDashboard = document.querySelector(".settings-dashboard");
+  if (settingsDashboard) {
+    settingsDashboard.remove();
+  }
+
+  // Show main dashboard
+  document.querySelector(".container").style.display = "block";
+}
+
+function openTestSite() {
+  // Open Test.html in a new window/tab
+  window.open("test.html", "_blank");
+}
+
+function addSettingsStyles() {
+  const style = document.createElement("style");
+  style.textContent = `
+    .settings-dashboard {
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .settings-header {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      margin-bottom: 3rem;
+      padding-bottom: 1rem;
+      border-bottom: 3px solid #007bff;
+    }
+    
+    .back-button {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.3s;
+    }
+    
+    .back-button:hover {
+      background: #5a6268;
+    }
+    
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    
+    .settings-card {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+    
+    .settings-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .card-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    .settings-card h3 {
+      color: #2c3e50;
+      margin-bottom: 0.5rem;
+    }
+    
+    .settings-card p {
+      color: #6c757d;
+      margin: 0;
+    }
+  `;
+  document.head.appendChild(style);
+}

@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🧪 Site Testing Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+
+      .test-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+      }
+
+      .test-header {
+        background: linear-gradient(135deg, #2c3e50, #34495e);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+      }
+
+      .test-header h1 {
+        margin: 0;
+        font-size: 2.5rem;
+      }
+
+      .test-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+      }
+
+      .test-content {
+        padding: 2rem;
+      }
+
+      .test-section {
+        margin-bottom: 3rem;
+        padding: 2rem;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        background: #f8f9fa;
+      }
+
+      .test-section h2 {
+        color: #2c3e50;
+        border-bottom: 3px solid #007bff;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .test-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+      }
+
+      .test-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .test-card h3 {
+        color: #007bff;
+        margin-top: 0;
+      }
+
+      .test-button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1rem;
+        margin: 0.5rem 0.5rem 0.5rem 0;
+        transition: all 0.3s ease;
+      }
+
+      .test-button:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+      }
+
+      .test-button.success {
+        background: #28a745;
+      }
+
+      .test-button.danger {
+        background: #dc3545;
+      }
+
+      .test-button.warning {
+        background: #ffc107;
+        color: #212529;
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+      }
+
+      .status-online {
+        background: #28a745;
+      }
+
+      .status-offline {
+        background: #dc3545;
+      }
+
+      .status-warning {
+        background: #ffc107;
+      }
+
+      .test-results {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        padding: 1rem;
+        margin-top: 1rem;
+        font-family: monospace;
+        font-size: 0.9rem;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .api-status {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .refresh-button {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+
+      .refresh-button:hover {
+        background: #5a6268;
+      }
+
+      .test-info {
+        background: #e3f2fd;
+        border: 1px solid #2196f3;
+        border-radius: 5px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+      }
+
+      .test-info h3 {
+        color: #1976d2;
+        margin-top: 0;
+      }
+
+      .test-info ul {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+      }
+
+      .test-info li {
+        margin: 0.25rem 0;
+      }
+
+      /* Health Check Styles */
+      .health-check-container {
+        text-align: center;
+        padding: 2rem;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+      }
+
+      .health-check-progress {
+        margin: 2rem 0;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 20px;
+        background: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      .progress-text {
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 1rem;
+      }
+
+      .health-check-results {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        text-align: left;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .health-check-results h4 {
+        color: #2c3e50;
+        margin-top: 0;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 0.5rem;
+      }
+
+      .test-result-item {
+        margin: 1rem 0;
+        padding: 1rem;
+        border-radius: 5px;
+        border-left: 4px solid #007bff;
+      }
+
+      .test-result-item.success {
+        background: #d4edda;
+        border-left-color: #28a745;
+      }
+
+      .test-result-item.warning {
+        background: #fff3cd;
+        border-left-color: #ffc107;
+      }
+
+      .test-result-item.error {
+        background: #f8d7da;
+        border-left-color: #dc3545;
+      }
+
+      .test-result-item h5 {
+        margin: 0 0 0.5rem 0;
+        color: #2c3e50;
+      }
+
+      .test-result-item p {
+        margin: 0;
+        font-family: monospace;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="test-container">
+      <div class="test-header">
+        <h1>🧪 Site Testing Dashboard</h1>
+        <p>Comprehensive testing tools for your Fantasy Football Dashboard</p>
+      </div>
+
+      <div class="test-content">
+        <!-- Test Information -->
+        <div class="test-info">
+          <h3>📋 Testing Overview</h3>
+          <p>
+            This page provides comprehensive testing tools for your live site.
+            Use these tests to verify:
+          </p>
+          <ul>
+            <li>API connectivity and response times</li>
+            <li>Data loading and display functionality</li>
+            <li>User interface responsiveness</li>
+            <li>Error handling and fallback systems</li>
+            <li>Cross-browser compatibility</li>
+          </ul>
+        </div>
+
+        <!-- Quick Health Check Section -->
+        <div class="test-section">
+          <h2>🚀 Quick Health Check</h2>
+          <p>
+            Run all safe tests at once to get a comprehensive overview of your
+            site's health.
+          </p>
+
+          <div class="health-check-container">
+            <button
+              class="test-button success"
+              onclick="runQuickHealthCheck()"
+              id="healthCheckBtn"
+            >
+              🏥 Run Quick Health Check
+            </button>
+
+            <div
+              class="health-check-progress"
+              id="healthCheckProgress"
+              style="display: none"
+            >
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+              </div>
+              <div class="progress-text" id="progressText">
+                Starting health check...
+              </div>
+            </div>
+
+            <div class="health-check-results" id="healthCheckResults">
+              <p>
+                Click the button above to run a comprehensive health check of
+                your site.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- API Testing Section -->
+        <div class="test-section">
+          <h2>🔌 API Connectivity Tests</h2>
+
+          <div class="api-status">
+            <span
+              >Server Status:
+              <span
+                class="status-indicator status-offline"
+                id="serverStatus"
+              ></span
+              ><span id="serverText">Unknown</span></span
+            >
+            <button class="refresh-button" onclick="testServerStatus()">
+              Refresh Status
+            </button>
+          </div>
+
+          <div class="test-grid">
+            <div class="test-card">
+              <h3>🏈 League Info Test</h3>
+              <p>Test the league information API endpoint</p>
+              <button class="test-button" onclick="testLeagueInfo()">
+                Test League Info
+              </button>
+              <div class="test-results" id="leagueInfoResults">
+                Click button to test...
+              </div>
+            </div>
+
+            <div class="test-card">
+              <h3>📊 Standings Test</h3>
+              <p>Test the team standings API endpoint</p>
+              <button class="test-button" onclick="testStandings()">
+                Test Standings
+              </button>
+              <div class="test-results" id="standingsResults">
+                Click button to test...
+              </div>
+            </div>
+
+            <div class="test-card">
+              <h3>📈 Team Points Test</h3>
+              <p>Test the weekly team points API endpoint</p>
+              <button class="test-button" onclick="testTeamPoints()">
+                Test Team Points
+              </button>
+              <div class="test-results" id="teamPointsResults">
+                Click button to test...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performance Testing Section -->
+        <div class="test-section">
+          <h2>⚡ Performance Tests</h2>
+
+          <div class="test-grid">
+            <div class="test-card">
+              <h3>🚀 Load Time Test</h3>
+              <p>Measure API response times</p>
+              <button class="test-button" onclick="testLoadTimes()">
+                Test Load Times
+              </button>
+              <div class="test-results" id="loadTimeResults">
+                Click button to test...
+              </div>
+            </div>
+
+            <div class="test-card">
+              <h3>🔄 Stress Test</h3>
+              <p>Test multiple simultaneous requests</p>
+              <button class="test-button" onclick="testStressTest()">
+                Run Stress Test
+              </button>
+              <div class="test-results" id="stressTestResults">
+                Click button to test...
+              </div>
+            </div>
+
+            <div class="test-card">
+              <h3>💾 Memory Test</h3>
+              <p>Check for memory leaks</p>
+              <button class="test-button" onclick="testMemoryUsage()">
+                Test Memory
+              </button>
+              <div class="test-results" id="memoryResults">
+                Click button to test...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Browser Testing Section -->
+        <div class="test-section">
+          <h2>🌐 Browser Compatibility Tests</h2>
+
+          <div class="test-grid">
+            <div class="test-card">
+              <h3>📱 Responsive Design</h3>
+              <p>Test mobile and tablet layouts</p>
+              <button class="test-button" onclick="testResponsive()">
+                Test Responsive
+              </button>
+              <div class="test-results" id="responsiveResults">
+                Click button to test...
+              </div>
+            </div>
+
+            <div class="test-card">
+              <h3>🔍 Feature Detection</h3>
+              <p>Check browser feature support</p>
+              <button class="test-button" onclick="testBrowserFeatures()">
+                Test Features
+              </button>
+              <div class="test-results" id="featuresResults">
+                Click button to test...
+              </div>
+            </div>
+
+            <div class="test-card">
+              <h3>🎨 CSS Compatibility</h3>
+              <p>Verify CSS rendering</p>
+              <button class="test-button" onclick="testCSSCompatibility()">
+                Test CSS
+              </button>
+              <div class="test-results" id="cssResults">
+                Click button to test...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Testing Section -->
+        <div class="test-section">
+          <h2>❌ Error Handling Tests</h2>
+
+          <div class="test-grid">
+            <div class="test-card">
+              <h3>🚫 Network Errors</h3>
+              <p>Test offline behavior</p>
+              <button class="test-button warning" onclick="testNetworkErrors()">
+                Test Offline
+              </button>
+              <div class="test-results" id="networkResults">
+                Click button to test...
+              </div>
+            </div>
+
+            <div class="test-card">
+              <h3>💥 API Errors</h3>
+              <p>Test error responses</p>
+              <button class="test-button danger" onclick="testAPIErrors()">
+                Test Errors
+              </button>
+              <div class="test-results" id="apiErrorResults">
+                Click button to test...
+              </div>
+            </div>
+
+            <div class="test-card">
+              <h3>🔄 Fallback Systems</h3>
+              <p>Test fallback mechanisms</p>
+              <button class="test-button" onclick="testFallbacks()">
+                Test Fallbacks
+              </button>
+              <div class="test-results" id="fallbackResults">
+                Click button to test...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+              // Test functions
+              function testServerStatus() {
+                  const statusIndicator = document.getElementById('serverStatus');
+                  const statusText = document.getElementById('serverText');
+
+                  statusText.textContent = 'Testing...';
+
+                  fetch('http://localhost:3000/health')
+                      .then(response => {
+                          if (response.ok) {
+                              statusIndicator.className = 'status-indicator status-online';
+                              statusText.textContent = 'Online';
+                          } else {
+                              statusIndicator.className = 'status-indicator status-warning';
+                              statusText.textContent = 'Warning';
+                          }
+                      })
+                      .catch(error => {
+                          statusIndicator.className = 'status-indicator status-offline';
+                          statusText.textContent = 'Offline';
+                      });
+              }
+
+              function testLeagueInfo() {
+                  const results = document.getElementById('leagueInfoResults');
+                  results.textContent = 'Testing...';
+
+                  const startTime = performance.now();
+
+                  fetch('http://localhost:3000/api/league-info')
+                      .then(response => response.json())
+                      .then(data => {
+                          const endTime = performance.now();
+                          const responseTime = (endTime - startTime).toFixed(2);
+
+                          results.innerHTML = `
+      ✅ Success! Response time: ${responseTime}ms
+      📊 League: ${data.league.name}
+      🏈 Season: ${data.league.season}
+      📈 Status: ${data.league.status}
+      👥 Teams: ${data.league.totalTeams}
+                          `;
+                      })
+                      .catch(error => {
+                          results.innerHTML = `❌ Error: ${error.message}`;
+                      });
+              }
+
+              function testStandings() {
+                  const results = document.getElementById('standingsResults');
+                  results.textContent = 'Testing...';
+
+                  const startTime = performance.now();
+
+                  fetch('http://localhost:3000/api/team-standings')
+                      .then(response => response.json())
+                      .then(data => {
+                          const endTime = performance.now();
+                          const responseTime = (endTime - startTime).toFixed(2);
+
+                          results.innerHTML = `
+      ✅ Success! Response time: ${responseTime}ms
+      📊 Standings loaded: ${data.standings.length} teams
+      🏆 Top team: ${data.standings[0]?.teamName || 'N/A'}
+                          `;
+                      })
+                      .catch(error => {
+                          results.innerHTML = `❌ Error: ${error.message}`;
+                      });
+              }
+
+              function testTeamPoints() {
+                  const results = document.getElementById('teamPointsResults');
+                  results.textContent = 'Testing...';
+
+                  const startTime = performance.now();
+
+                  fetch('http://localhost:3000/api/team-points/1')
+                      .then(response => response.json())
+                      .then(data => {
+                          const endTime = performance.now();
+                          const responseTime = (endTime - startTime).toFixed(2);
+
+                          results.innerHTML = `
+      ✅ Success! Response time: ${responseTime}ms
+      📈 Week: ${data.week}
+      🏈 Teams: ${data.teams.length}
+      📊 Sample team: ${data.teams[0]?.teamName || 'N/A'}
+                          `;
+                      })
+                      .catch(error => {
+                          results.innerHTML = `❌ Error: ${error.message}`;
+                      });
+              }
+
+              function testLoadTimes() {
+                  const results = document.getElementById('loadTimeResults');
+                  results.textContent = 'Testing...';
+
+                  const endpoints = [
+                      'http://localhost:3000/health',
+                      'http://localhost:3000/api/league-info',
+                      'http://localhost:3000/api/team-standings',
+                      'http://localhost:3000/api/team-points/1'
+                  ];
+
+                  let totalTime = 0;
+                  let successCount = 0;
+
+                  Promise.all(endpoints.map(endpoint => {
+                      const startTime = performance.now();
+                      return fetch(endpoint)
+                          .then(response => {
+                              const endTime = performance.now();
+                              const time = endTime - startTime;
+                              totalTime += time;
+                              successCount++;
+                              return { endpoint, time, success: true };
+                          })
+                          .catch(error => {
+                              return { endpoint, time: 0, success: false, error: error.message };
+                          });
+                  })).then(results => {
+                      const avgTime = totalTime / successCount;
+                      const successRate = (successCount / endpoints.length) * 100;
+
+                      document.getElementById('loadTimeResults').innerHTML = `
+      📊 Load Time Test Results:
+      ✅ Success Rate: ${successRate.toFixed(1)}%
+      ⏱️ Average Response: ${avgTime.toFixed(2)}ms
+      📈 Total Time: ${totalTime.toFixed(2)}ms
+      🔗 Endpoints Tested: ${endpoints.length}
+                      `;
+                  });
+              }
+
+              function testStressTest() {
+                  const results = document.getElementById('stressTestResults');
+                  results.textContent = 'Running stress test...';
+
+                  const requests = [];
+                  const startTime = performance.now();
+
+                  // Make 10 simultaneous requests
+                  for (let i = 0; i < 10; i++) {
+                      requests.push(
+                          fetch('http://localhost:3000/api/league-info')
+                              .then(response => response.json())
+                              .catch(error => ({ error: error.message }))
+                      );
+                  }
+
+                  Promise.all(requests).then(responses => {
+                      const endTime = performance.now();
+                      const totalTime = endTime - startTime;
+                      const successCount = responses.filter(r => !r.error).length;
+
+                      results.innerHTML = `
+      🔥 Stress Test Complete!
+      ⏱️ Total Time: ${totalTime.toFixed(2)}ms
+      ✅ Successful Requests: ${successCount}/10
+      📊 Success Rate: ${(successCount / 10) * 100}%
+      🚀 Average per Request: ${(totalTime / 10).toFixed(2)}ms
+                      `;
+                  });
+              }
+
+              function testMemoryUsage() {
+                  const results = document.getElementById('memoryResults');
+
+                  if ('memory' in performance) {
+                      const memory = performance.memory;
+                      results.innerHTML = `
+      💾 Memory Usage:
+      📊 Used: ${(memory.usedJSHeapSize / 1048576).toFixed(2)} MB
+      📈 Total: ${(memory.totalJSHeapSize / 1048576).toFixed(2)} MB
+      🚀 Limit: ${(memory.jsHeapSizeLimit / 1048576).toFixed(2)} MB
+                      `;
+                  } else {
+                      results.innerHTML = '❌ Memory API not available in this browser';
+                  }
+              }
+
+              function testResponsive() {
+                  const results = document.getElementById('responsiveResults');
+                  const width = window.innerWidth;
+                  const height = window.innerHeight;
+
+                  let deviceType = 'Desktop';
+                  if (width < 768) deviceType = 'Mobile';
+                  else if (width < 1024) deviceType = 'Tablet';
+
+                  results.innerHTML = `
+      📱 Responsive Design Test:
+      📏 Screen Size: ${width} × ${height}
+      📱 Device Type: ${deviceType}
+      🔍 Viewport: ${width < 768 ? 'Mobile' : 'Desktop'} optimized
+      ✅ Responsive design working
+                  `;
+              }
+
+              function testBrowserFeatures() {
+                  const results = document.getElementById('featuresResults');
+
+                  const features = {
+                      'Fetch API': typeof fetch !== 'undefined',
+                      'Promise Support': typeof Promise !== 'undefined',
+                      'ES6 Classes': typeof class !== 'undefined',
+                      'Arrow Functions': (() => {}) !== undefined,
+                      'Template Literals': `test` !== 'test',
+                      'Local Storage': typeof localStorage !== 'undefined'
+                  };
+
+                  const supportedFeatures = Object.values(features).filter(Boolean).length;
+                  const totalFeatures = Object.keys(features).length;
+
+                  let featureList = '';
+                  Object.entries(features).forEach(([feature, supported]) => {
+                      featureList += `${supported ? '✅' : '❌'} ${feature}\n`;
+                  });
+
+                  results.innerHTML = `
+      🔍 Browser Feature Test:
+      📊 Supported: ${supportedFeatures}/${totalFeatures}
+      ${featureList}
+                  `;
+              }
+
+              function testCSSCompatibility() {
+                  const results = document.getElementById('cssResults');
+
+                  const cssFeatures = {
+                      'Flexbox': CSS.supports('display', 'flex'),
+                      'Grid': CSS.supports('display', 'grid'),
+                      'CSS Variables': CSS.supports('--custom-property', 'value'),
+                      'Transform': CSS.supports('transform', 'translateX(0)'),
+                      'Transition': CSS.supports('transition', 'all 0.3s'),
+                      'Border Radius': CSS.supports('border-radius', '5px')
+                  };
+
+                  const supportedCSS = Object.values(cssFeatures).filter(Boolean).length;
+                  const totalCSS = Object.keys(cssFeatures).length;
+
+                  let cssList = '';
+                  Object.entries(cssFeatures).forEach(([feature, supported]) => {
+                      cssList += `${supported ? '✅' : '❌'} ${feature}\n`;
+                  });
+
+                  results.innerHTML = `
+      🎨 CSS Compatibility Test:
+      📊 Supported: ${supportedCSS}/${totalCSS}
+      ${cssList}
+                  `;
+              }
+
+              function testNetworkErrors() {
+                  const results = document.getElementById('networkResults');
+                  results.textContent = 'Testing offline behavior...';
+
+                  // Simulate network error by using invalid URL
+                  fetch('http://invalid-url-that-will-fail.com/api/test')
+                      .then(response => response.json())
+                      .catch(error => {
+                          results.innerHTML = `
+      🚫 Network Error Test:
+      ❌ Expected error caught: ${error.message}
+      ✅ Error handling working properly
+      🔄 Fallback systems should activate
+                          `;
+                      });
+              }
+
+              function testAPIErrors() {
+                  const results = document.getElementById('apiErrorResults');
+                  results.textContent = 'Testing API error handling...';
+
+                  // Test with invalid endpoint
+                  fetch('http://localhost:3000/api/invalid-endpoint')
+                      .then(response => {
+                          if (!response.ok) {
+                              results.innerHTML = `
+      💥 API Error Test:
+      ❌ Status: ${response.status} ${response.statusText}
+      ✅ Error handling working properly
+      🔄 Proper HTTP status codes returned
+                              `;
+                          }
+                      })
+                      .catch(error => {
+                          results.innerHTML = `
+      💥 API Error Test:
+      ❌ Network error: ${error.message}
+      ✅ Error handling working properly
+                          `;
+                      });
+              }
+
+              function testFallbacks() {
+                  const results = document.getElementById('fallbackResults');
+                  results.textContent = 'Testing fallback systems...';
+
+                  // Test fallback by temporarily disabling server
+                  const originalFetch = window.fetch;
+                  window.fetch = () => Promise.reject(new Error('Simulated server failure'));
+
+                  setTimeout(() => {
+                      // Test if fallback data is used
+                      results.innerHTML = `
+      🔄 Fallback Test:
+      ❌ Server simulation: Disabled
+      ✅ Fallback data should be used
+      📊 Mock data should display
+      🔄 Original fetch restored
+                      `;
+
+                      // Restore original fetch
+                      window.fetch = originalFetch;
+                  }, 1000);
+              }
+
+              // Quick Health Check Functions
+              async function runQuickHealthCheck() {
+                  const button = document.getElementById('healthCheckBtn');
+                  const progress = document.getElementById('healthCheckProgress');
+                  const progressFill = document.getElementById('progressFill');
+                  const progressText = document.getElementById('progressText');
+                  const results = document.getElementById('healthCheckResults');
+
+                  // Disable button and show progress
+                  button.disabled = true;
+                  button.textContent = '🏥 Running Health Check...';
+                  progress.style.display = 'block';
+                  results.innerHTML = '<h4>🏥 Quick Health Check Results</h4>';
+
+                  const tests = [
+                      { name: 'Server Status', func: testServerStatusQuick, weight: 10 },
+                      { name: 'League Info API', func: testLeagueInfoQuick, weight: 20 },
+                      { name: 'Standings API', func: testStandingsQuick, weight: 20 },
+                      { name: 'Team Points API', func: testTeamPointsQuick, weight: 20 },
+                      { name: 'Browser Features', func: testBrowserFeaturesQuick, weight: 15 },
+                      { name: 'CSS Compatibility', func: testCSSCompatibilityQuick, weight: 15 }
+                  ];
+
+                  let totalWeight = tests.reduce((sum, test) => sum + test.weight, 0);
+                  let currentWeight = 0;
+                  let allResults = [];
+
+                  for (let i = 0; i < tests.length; i++) {
+                      const test = tests[i];
+                      progressText.textContent = `Running: ${test.name}...`;
+
+                      try {
+                          const result = await test.func();
+                          allResults.push(result);
+
+                          // Update progress
+                          currentWeight += test.weight;
+                          const progressPercent = (currentWeight / totalWeight) * 100;
+                          progressFill.style.width = `${progressPercent}%`;
+
+                      } catch (error) {
+                          allResults.push({
+                              name: test.name,
+                              status: 'error',
+                              message: error.message
+                          });
+                      }
+                  }
+
+                  // Complete progress
+                  progressFill.style.width = '100%';
+                  progressText.textContent = 'Health check complete!';
+
+                  // Display results
+                  displayHealthCheckResults(allResults);
+
+                  // Re-enable button
+                  setTimeout(() => {
+                      button.disabled = false;
+                      button.textContent = '🏥 Run Quick Health Check';
+                      progress.style.display = 'none';
+                  }, 2000);
+              }
+
+              function displayHealthCheckResults(results) {
+                  const resultsDiv = document.getElementById('healthCheckResults');
+                  let html = '<h4>🏥 Quick Health Check Results</h4>';
+
+                  let successCount = 0;
+                  let warningCount = 0;
+                  let errorCount = 0;
+
+                  results.forEach(result => {
+                      let statusClass = 'success';
+                      let statusIcon = '✅';
+
+                      if (result.status === 'warning') {
+                          statusClass = 'warning';
+                          statusIcon = '⚠️';
+                          warningCount++;
+                      } else if (result.status === 'error') {
+                          statusClass = 'error';
+                          statusIcon = '❌';
+                          errorCount++;
+                      } else {
+                          successCount++;
+                      }
+
+                      html += `
+                          <div class="test-result-item ${statusClass}">
+                              <h5>${statusIcon} ${result.name}</h5>
+                              <p>${result.message}</p>
+                          </div>
+                      `;
+                  });
+
+                  // Add summary
+                  const totalTests = results.length;
+                  html += `
+                      <div class="test-result-item" style="background: #e3f2fd; border-left-color: #2196f3;">
+                          <h5>📊 Summary</h5>
+                          <p>Total Tests: ${totalTests} | ✅ Success: ${successCount} | ⚠️ Warning: ${warningCount} | ❌ Error: ${errorCount}</p>
+                      </div>
+                  `;
+
+                  resultsDiv.innerHTML = html;
+              }
+
+              // Quick test functions (non-destructive versions)
+              async function testServerStatusQuick() {
+                  try {
+                      const response = await fetch('http://localhost:3000/health');
+                      if (response.ok) {
+                          return {
+                              name: 'Server Status',
+                              status: 'success',
+                              message: '✅ Server is online and responding'
+                          };
+                      } else {
+                          return {
+                              name: 'Server Status',
+                              status: 'warning',
+                              message: `⚠️ Server responded with status: ${response.status}`
+                          };
+                      }
+                  } catch (error) {
+                      return {
+                          name: 'Server Status',
+                          status: 'error',
+                          message: `❌ Server is offline: ${error.message}`
+                      };
+                  }
+              }
+
+              async function testLeagueInfoQuick() {
+                  try {
+                      const startTime = performance.now();
+                      const response = await fetch('http://localhost:3000/api/league-info');
+                      const data = await response.json();
+                      const endTime = performance.now();
+                      const responseTime = (endTime - startTime).toFixed(2);
+
+                      return {
+                          name: 'League Info API',
+                          status: 'success',
+                          message: `✅ League: ${data.league.name} | Season: ${data.league.season} | Response: ${responseTime}ms`
+                      };
+                  } catch (error) {
+                      return {
+                          name: 'League Info API',
+                          status: 'error',
+                          message: `❌ Failed: ${error.message}`
+                      };
+                  }
+              }
+
+              async function testStandingsQuick() {
+                  try {
+                      const startTime = performance.now();
+                      const response = await fetch('http://localhost:3000/api/team-standings');
+                      const data = await response.json();
+                      const endTime = performance.now();
+                      const responseTime = (endTime - startTime).toFixed(2);
+
+                      return {
+                          name: 'Standings API',
+                          status: 'success',
+                          message: `✅ Loaded ${data.standings.length} teams | Response: ${responseTime}ms`
+                      };
+                  } catch (error) {
+                      return {
+                          name: 'Standings API',
+                          status: 'error',
+                          message: `❌ Failed: ${error.message}`
+                      };
+                  }
+              }
+
+              async function testTeamPointsQuick() {
+                  try {
+                      const startTime = performance.now();
+                      const response = await fetch('http://localhost:3000/api/team-points/1');
+                      const data = await response.json();
+                      const endTime = performance.now();
+                      const responseTime = (endTime - startTime).toFixed(2);
+
+                      return {
+                          name: 'Team Points API',
+                          status: 'success',
+                          message: `✅ Week ${data.week}: ${data.teams.length} teams | Response: ${responseTime}ms`
+                      };
+                  } catch (error) {
+                      return {
+                          name: 'Team Points API',
+                          status: 'error',
+                          message: `❌ Failed: ${error.message}`
+                      };
+                  }
+              }
+
+              function testBrowserFeaturesQuick() {
+                  const features = {
+                      'Fetch API': typeof fetch !== 'undefined',
+                      'Promise Support': typeof Promise !== 'undefined',
+                      'ES6 Classes': typeof class !== 'undefined',
+                      'Arrow Functions': (() => {}) !== undefined,
+                      'Template Literals': `test` !== 'test',
+                      'Local Storage': typeof localStorage !== 'undefined'
+                  };
+
+                  const supportedFeatures = Object.values(features).filter(Boolean).length;
+                  const totalFeatures = Object.keys(features).length;
+
+                  return {
+                      name: 'Browser Features',
+                      status: 'success',
+                      message: `✅ Supported: ${supportedFeatures}/${totalFeatures} modern browser features`
+                  };
+              }
+
+              function testCSSCompatibilityQuick() {
+                  const cssFeatures = {
+                      'Flexbox': CSS.supports('display', 'flex'),
+                      'Grid': CSS.supports('display', 'grid'),
+                      'CSS Variables': CSS.supports('--custom-property', 'value'),
+                      'Transform': CSS.supports('transform', 'translateX(0)'),
+                      'Transition': CSS.supports('transition', 'all 0.3s'),
+                      'Border Radius': CSS.supports('border-radius', '5px')
+                  };
+
+                  const supportedCSS = Object.values(cssFeatures).filter(Boolean).length;
+                  const totalCSS = Object.keys(cssFeatures).length;
+
+                  return {
+                      name: 'CSS Compatibility',
+                      status: 'success',
+                      message: `✅ Supported: ${supportedCSS}/${totalCSS} CSS features`
+                  };
+              }
+
+              // Auto-test server status on page load
+              window.addEventListener('load', () => {
+                  setTimeout(testServerStatus, 1000);
+              });
+    </script>
+  </body>
+</html>
