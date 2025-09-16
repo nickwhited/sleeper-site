@@ -550,9 +550,7 @@ if (typeof window !== "undefined") {
 async function fetchTeamPoints(week = 1) {
   try {
     // Call your real API server
-    const response = await fetch(
-      `http://localhost:3000/api/team-points/${week}`
-    );
+    const response = await fetch(`/api/team-points/${week}`);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -582,9 +580,7 @@ let currentWeek = 1;
 // Fetch team points for a specific week
 async function fetchTeamPoints(week) {
   try {
-    const response = await fetch(
-      `http://localhost:3000/api/team-points/${week}`
-    );
+    const response = await fetch(`/api/team-points/${week}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -707,7 +703,7 @@ function renderTeamPointsChart(week) {
 async function fetchTeamStandings() {
   try {
     console.log("🌐 Fetching team standings from API...");
-    const response = await fetch("http://localhost:3000/api/team-standings");
+    const response = await fetch("/api/team-standings");
     console.log("📡 API response status:", response.status);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -918,7 +914,7 @@ async function refreshStandings() {
 // Fetch league information
 async function fetchLeagueInfo() {
   try {
-    const response = await fetch("http://localhost:3000/api/league-info");
+    const response = await fetch("/api/league-info");
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

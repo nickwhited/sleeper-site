@@ -1,5 +1,17 @@
 {
+  "name": "sleeper-site",
+  "version": "1.0.0",
+  "description": "Fantasy football dashboard for Sleeper league",
+  "scripts": {
+    "build": "echo 'Build complete - static files ready for deployment'",
+    "dev": "cd server && npm start",
+    "deploy": "netlify deploy --prod"
+  },
   "dependencies": {
+    "@google-cloud/bigquery": "^6.0.0",
     "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
   }
 }

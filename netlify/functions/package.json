@@ -1,0 +1,14 @@
+{
+  "name": "sleeper-netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify functions for Sleeper fantasy football dashboard",
+  "main": "index.js",
+  "dependencies": {
+    "@google-cloud/bigquery": "^6.0.0",
+    "node-fetch": "^2.6.7"
+  },
+  "engines": {
+    "node": "18"
+  }
+}
+
