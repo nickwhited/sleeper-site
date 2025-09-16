@@ -48,13 +48,15 @@ exports.handler = async (event, context) => {
     const query = `
       SELECT 
         t.team_name,
-        COALESCE(m.points, 0) as points,
-        t.roster_id,
+        CAST(t.roster_id AS STRING) AS roster_id,
         t.team_id,
-        MAX(t.avatar_id) as avatar_id
+        t.owner_id,
+        MAX(t.avatar_id) AS avatar_id,
+        COALESCE(m.points, 0) AS points
       FROM \`sleeper_league.teams\` t
-      LEFT JOIN \`sleeper_league.matchups\` m ON t.roster_id = m.roster_id AND m.week = @week
-      GROUP BY t.team_name, m.points, t.roster_id, t.team_id
+      LEFT JOIN \`sleeper_league.matchups\` m 
+        ON CAST(t.roster_id AS STRING) = CAST(m.roster_id AS STRING) AND m.week = @week
+      GROUP BY t.team_name, t.roster_id, t.team_id, t.owner_id, m.points
       ORDER BY points DESC
     `;
 
@@ -80,10 +82,40 @@ exports.handler = async (event, context) => {
     }
 
     console.log("📊 Sample data:", rows.slice(0, 2));
+
+    // Enhance names/avatars from Sleeper for owners who joined
+    const ownerIds = Array.from(
+      new Set(rows.map((r) => r.owner_id).filter((v) => !!v))
+    );
+    const userMap = {};
+    for (const ownerId of ownerIds) {
+      try {
+        const resp = await fetch(`https://api.sleeper.app/v1/user/${ownerId}`);
+        if (resp.ok) {
+          const u = await resp.json();
+          userMap[ownerId] = u;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    const enhanced = rows.map((t) => {
+      if (t.owner_id && userMap[t.owner_id]) {
+        return {
+          ...t,
+          team_name: userMap[t.owner_id].display_name || t.team_name,
+          avatar_id: userMap[t.owner_id].avatar || t.avatar_id,
+          is_real_team: true,
+        };
+      }
+      return { ...t, is_real_team: false };
+    });
+
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(rows),
+      body: JSON.stringify(enhanced),
     };
   } catch (error) {
     console.error("❌ Error fetching team points:", error);
