@@ -45,8 +45,9 @@ exports.handler = async (event, context) => {
 
     const query = `
       WITH team_points AS (
-        SELECT m.week, m.matchup_id, CAST(m.roster_id AS STRING) AS roster_id, m.points
+        SELECT m.week, m.matchup_id, CAST(m.roster_id AS STRING) AS roster_id, CAST(m.points AS FLOAT64) AS points
         FROM \`sleeper_league.matchups\` m
+        WHERE m.roster_id IS NOT NULL
       ),
       paired AS (
         SELECT a.week, a.matchup_id, a.roster_id, a.points,
@@ -75,20 +76,23 @@ exports.handler = async (event, context) => {
       streak_calc AS (
         SELECT
           lr.roster_id,
-          (
-            SELECT IFNULL(
-              CASE results[OFFSET(0)]
-                WHEN 'W' THEN CONCAT('W', CAST(
-                  (SELECT COUNT(1) FROM UNNEST(results) r WITH OFFSET off
-                   WHERE r = 'W' AND (off = 0 OR results[OFFSET(off-1)] = 'W')) AS STRING))
-                WHEN 'L' THEN CONCAT('L', CAST(
-                  (SELECT COUNT(1) FROM UNNEST(results) r WITH OFFSET off
-                   WHERE r = 'L' AND (off = 0 OR results[OFFSET(off-1)] = 'L')) AS STRING))
-                ELSE 'T1'
-              END,
-              'T0'
+          CASE
+            WHEN ARRAY_LENGTH(lr.results) = 0 THEN 'T0'
+            ELSE CONCAT(
+              lr.results[SAFE_OFFSET(0)],
+              CAST(
+                COALESCE(
+                  (
+                    SELECT COUNT(1)
+                    FROM UNNEST(lr.results) r WITH OFFSET off
+                    WHERE r = lr.results[SAFE_OFFSET(0)]
+                      AND (off = 0 OR lr.results[SAFE_OFFSET(off-1)] = lr.results[SAFE_OFFSET(0)])
+                  ),
+                  1
+                ) AS STRING
+              )
             )
-          ) AS streak
+          END AS streak
         FROM latest_results lr
       )
       SELECT 

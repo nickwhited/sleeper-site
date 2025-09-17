@@ -546,31 +546,14 @@ if (typeof window !== "undefined") {
     initializeChart();
   }
 }
-// Example: Fetch team points from your backend (or mock data)
+// Fetch team points from API only
 async function fetchTeamPoints(week = 1) {
-  try {
-    // Call your real API server
-    const response = await fetch(`/api/team-points/${week}`);
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log(`Fetched team points for week ${week}:`, data);
-
-    return data.teams || [];
-  } catch (error) {
-    console.error("Error fetching team points:", error);
-
-    // Fallback to mock data if server is not running
-    console.log("Using fallback mock data...");
-    return [
-      { teamName: "Team Alpha", points: 95 },
-      { teamName: "Team Bravo", points: 88 },
-      { teamName: "Team Charlie", points: 76 },
-    ];
-  }
+  const response = await fetch(`/api/team-points/${week}`);
+  if (!response.ok)
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  const data = await response.json();
+  console.log(`Fetched team points for week ${week}:`, data);
+  return Array.isArray(data) ? data : [];
 }
 
 // Global variables
@@ -579,44 +562,13 @@ let currentWeek = 1;
 
 // Fetch team points for a specific week
 async function fetchTeamPoints(week) {
-  try {
-    const response = await fetch(`/api/team-points/${week}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error fetching team points:", error);
-    // Fallback to mock data if server is unavailable
-    return generateMockTeamPoints(week);
-  }
+  const response = await fetch(`/api/team-points/${week}`);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
 }
 
-// Generate mock team points data (fallback)
-function generateMockTeamPoints(week) {
-  const teams = [
-    "Team 1",
-    "Team 2",
-    "Team 3",
-    "Team 4",
-    "Team 5",
-    "Team 6",
-    "Team 7",
-    "Team 8",
-    "Team 9",
-    "Team 10",
-  ];
-
-  return teams.map((team, index) => ({
-    team_name: team,
-    points: Math.floor(Math.random() * 150) + 50,
-    roster_id: (index + 1).toString(),
-    team_id: `team_${index + 1}`,
-    avatar_id: null,
-    is_real_team: false,
-  }));
-}
+// removed mock team points
 
 // Render team points chart
 function renderTeamPointsChart(week) {
@@ -701,25 +653,15 @@ function renderTeamPointsChart(week) {
 
 // Fetch team standings
 async function fetchTeamStandings() {
-  try {
-    console.log("🌐 Fetching team standings from API...");
-    const response = await fetch("/api/team-standings");
-    console.log("📡 API response status:", response.status);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    console.log("📊 API returned data:", data);
-
-    // Fetch real team names from Sleeper API for teams that have joined
-    const enhancedData = await enhanceTeamNames(data);
-    return enhancedData;
-  } catch (error) {
-    console.error("❌ Error fetching team standings:", error);
-    // Fallback to mock data if server is unavailable
-    console.log("🔄 Using fallback mock data...");
-    return generateMockStandings();
-  }
+  console.log("🌐 Fetching team standings from API...");
+  const response = await fetch("/api/team-standings");
+  console.log("📡 API response status:", response.status);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  const data = await response.json();
+  console.log("📊 API returned data:", data);
+  // Names/avatars are already enhanced server-side; keep client enhancer as a no-op fallback
+  const enhancedData = await enhanceTeamNames(data);
+  return enhancedData;
 }
 
 // Enhance team names with real Sleeper display names
@@ -790,39 +732,7 @@ async function enhanceTeamNames(teams) {
   }
 }
 
-// Generate mock standings data (fallback)
-function generateMockStandings() {
-  const teams = [
-    "Team 1",
-    "Team 2",
-    "Team 3",
-    "Team 4",
-    "Team 5",
-    "Team 6",
-    "Team 7",
-    "Team 8",
-    "Team 9",
-    "Team 10",
-  ];
-
-  return teams.map((team, index) => ({
-    team_name: team,
-    roster_id: (index + 1).toString(),
-    team_id: `team_${index + 1}`,
-    owner_id: null,
-    avatar_id: null,
-    is_real_team: false,
-    wins: Math.floor(Math.random() * 8) + 2,
-    losses: Math.floor(Math.random() * 8) + 2,
-    ties: 0,
-    streak:
-      Math.random() > 0.5
-        ? `W${Math.floor(Math.random() * 3) + 1}`
-        : `L${Math.floor(Math.random() * 3) + 1}`,
-    total_score: Math.floor(Math.random() * 1000) + 800,
-    rank: index + 1,
-  }));
-}
+// removed mock standings
 
 // Render standings table
 function renderStandingsTable(standings) {
@@ -908,6 +818,8 @@ async function refreshStandings() {
     console.log("✅ Standings table rendered successfully");
   } catch (error) {
     console.error("❌ Error refreshing standings:", error);
+    document.getElementById("status").textContent =
+      "Status: Failed to load standings";
   }
 }
 

@@ -100,6 +100,13 @@
         border-top: 3px solid #e9ecef;
       }
 
+      /* Make table horizontally scrollable on small screens */
+      .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
       .standings-section h2 {
         text-align: center;
         color: #2c3e50;
@@ -374,22 +381,24 @@
         <div class="standings-controls">
           <button id="refreshStandings">Refresh Standings</button>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Team</th>
-              <th>W</th>
-              <th>L</th>
-              <th>T</th>
-              <th>Streak</th>
-              <th>Total Score</th>
-            </tr>
-          </thead>
-          <tbody id="standingsBody">
-            <!-- Standings data will be populated here -->
-          </tbody>
-        </table>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Team</th>
+                <th>W</th>
+                <th>L</th>
+                <th>T</th>
+                <th>Streak</th>
+                <th>Total Score</th>
+              </tr>
+            </thead>
+            <tbody id="standingsBody">
+              <!-- Standings data will be populated here -->
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="controls">
