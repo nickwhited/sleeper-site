@@ -780,12 +780,7 @@ function renderStandingsTable(standings) {
 
     row.appendChild(teamCell);
 
-    // Add other columns
-    row.appendChild(createCell(team.wins));
-    row.appendChild(createCell(team.losses));
-    row.appendChild(createCell(team.ties));
-
-    // Add streak with styling
+    // Add win streak with styling
     const streakCell = document.createElement("td");
     streakCell.textContent = team.streak || "-";
     if (team.streak && team.streak.startsWith("W")) {
@@ -795,7 +790,8 @@ function renderStandingsTable(standings) {
     }
     row.appendChild(streakCell);
 
-    row.appendChild(createCell(team.total_score));
+    // Add total score
+    row.appendChild(createCell(team.total_score || 0));
 
     tbody.appendChild(row);
   });
@@ -918,6 +914,16 @@ function showSettingsDashboard() {
   // Hide the main dashboard
   document.querySelector(".container").style.display = "none";
 
+  // Get current theme for display
+  const currentTheme = document.body.getAttribute("data-theme") || "dark-neon";
+  const themeNames = {
+    "dark-neon": "Dark Mode with Neon",
+    sports: "Sports Theme",
+    glass: "Glass Morphism",
+    synthwave: "Retro Synthwave",
+    corporate: "Professional Corporate",
+  };
+
   // Create and show settings dashboard
   const settingsHTML = `
     <div class="settings-dashboard">
@@ -927,6 +933,40 @@ function showSettingsDashboard() {
       </div>
 
       <div class="settings-grid">
+        <div class="settings-card theme-settings-card">
+          <div class="card-icon">🎨</div>
+          <h3>Theme Settings</h3>
+          <p>Customize your dashboard appearance</p>
+          <div class="theme-controls">
+            <label for="settingsThemeSelect">Current Theme:</label>
+            <select id="settingsThemeSelect" onchange="changeTheme(this.value)">
+              <option value="dark-neon" ${
+                currentTheme === "dark-neon" ? "selected" : ""
+              }>Dark Mode with Neon</option>
+              <option value="sports" ${
+                currentTheme === "sports" ? "selected" : ""
+              }>Sports Theme</option>
+              <option value="glass" ${
+                currentTheme === "glass" ? "selected" : ""
+              }>Glass Morphism</option>
+              <option value="synthwave" ${
+                currentTheme === "synthwave" ? "selected" : ""
+              }>Retro Synthwave</option>
+              <option value="corporate" ${
+                currentTheme === "corporate" ? "selected" : ""
+              }>Professional Corporate</option>
+            </select>
+            <button class="set-default-btn" onclick="setDefaultTheme(document.getElementById('settingsThemeSelect').value)">
+              Set as Default Theme
+            </button>
+            <div class="current-default">
+              <small>Current Default: ${
+                themeNames[localStorage.getItem("defaultTheme") || "dark-neon"]
+              }</small>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-card" onclick="openTestSite()">
           <div class="card-icon">🧪</div>
           <h3>Test Site</h3>
@@ -1039,9 +1079,139 @@ function addSettingsStyles() {
       color: #6c757d;
       margin: 0;
     }
+
+    .theme-settings-card {
+      grid-column: 1 / -1;
+      text-align: left;
+    }
+
+    .theme-controls {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .theme-controls label {
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 0.5rem;
+    }
+
+    .theme-controls select {
+      padding: 0.5rem;
+      border: 2px solid #007bff;
+      border-radius: 5px;
+      background: white;
+      color: #2c3e50;
+      font-size: 1rem;
+    }
+
+    .set-default-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: background-color 0.3s;
+      align-self: flex-start;
+    }
+
+    .set-default-btn:hover {
+      background: #218838;
+    }
+
+    .current-default {
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      background: #f8f9fa;
+      border-radius: 5px;
+      border-left: 4px solid #007bff;
+    }
+
+    .current-default small {
+      color: #6c757d;
+      font-style: italic;
+    }
   `;
   document.head.appendChild(style);
 }
 
+// Theme switching functionality
+function changeTheme(themeName) {
+  console.log(`🎨 Changing theme to: ${themeName}`);
+
+  // Remove existing theme classes
+  document.body.className = document.body.className.replace(
+    /data-theme-\w+/g,
+    ""
+  );
+
+  // Add new theme class
+  document.body.setAttribute("data-theme", themeName);
+
+  // Save theme preference to localStorage
+  localStorage.setItem("selectedTheme", themeName);
+
+  // Update both select dropdowns to show current theme
+  const themeSelect = document.getElementById("themeSelect");
+  const settingsThemeSelect = document.getElementById("settingsThemeSelect");
+
+  if (themeSelect) {
+    themeSelect.value = themeName;
+  }
+  if (settingsThemeSelect) {
+    settingsThemeSelect.value = themeName;
+  }
+
+  console.log(`✅ Theme changed to: ${themeName}`);
+}
+
+// Set default theme function
+function setDefaultTheme(themeName) {
+  console.log(`🎯 Setting default theme to: ${themeName}`);
+  localStorage.setItem("defaultTheme", themeName);
+
+  // Show confirmation
+  const status = document.getElementById("status");
+  if (status) {
+    const originalText = status.textContent;
+    status.textContent = `✅ Default theme set to: ${themeName}`;
+    status.style.color = "#28a745";
+
+    // Reset after 3 seconds
+    setTimeout(() => {
+      status.textContent = originalText;
+      status.style.color = "";
+    }, 3000);
+  }
+
+  console.log(`✅ Default theme set to: ${themeName}`);
+}
+
+// Load saved theme on page load
+function loadSavedTheme() {
+  const savedTheme = localStorage.getItem("selectedTheme");
+  const defaultTheme = localStorage.getItem("defaultTheme") || "dark-neon";
+
+  if (savedTheme) {
+    console.log(`🔄 Loading saved theme: ${savedTheme}`);
+    changeTheme(savedTheme);
+  } else {
+    // Use the user's default theme preference
+    console.log(`🔄 Loading default theme: ${defaultTheme}`);
+    changeTheme(defaultTheme);
+  }
+}
+
 // Initialize when DOM is loaded
-document.addEventListener("DOMContentLoaded", initializeChart);
+document.addEventListener("DOMContentLoaded", function () {
+  // Load saved theme first
+  loadSavedTheme();
+
+  // Then initialize the chart
+  initializeChart();
+});
