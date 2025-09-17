@@ -787,10 +787,10 @@ function renderStandingsTable(standings) {
 
     // Add streak with styling
     const streakCell = document.createElement("td");
-    streakCell.textContent = team.streak;
-    if (team.streak.startsWith("W")) {
+    streakCell.textContent = team.streak || "-";
+    if (team.streak && team.streak.startsWith("W")) {
       streakCell.className = "streak-positive";
-    } else if (team.streak.startsWith("L")) {
+    } else if (team.streak && team.streak.startsWith("L")) {
       streakCell.className = "streak-negative";
     }
     row.appendChild(streakCell);

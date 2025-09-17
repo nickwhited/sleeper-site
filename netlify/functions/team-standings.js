@@ -101,11 +101,11 @@ exports.handler = async (event, context) => {
         t.team_id,
         t.owner_id,
         MAX(t.avatar_id) AS avatar_id,
-        a.wins,
-        a.losses,
-        a.ties,
-        a.total_score,
-        sc.streak
+        IFNULL(a.wins, 0) AS wins,
+        IFNULL(a.losses, 0) AS losses,
+        IFNULL(a.ties, 0) AS ties,
+        IFNULL(a.total_score, 0) AS total_score,
+        IFNULL(sc.streak, '-') AS streak
       FROM \`sleeper_league.teams\` t
       LEFT JOIN agg a ON t.roster_id = a.roster_id
       LEFT JOIN streak_calc sc ON t.roster_id = sc.roster_id
