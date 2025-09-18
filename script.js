@@ -558,6 +558,7 @@ async function fetchTeamPoints(week = 1) {
 
 // Global variables
 let teamPointsChart = null;
+let weeklyProgressChart = null;
 let currentWeek = 1;
 
 // Fetch team points for a specific week
@@ -649,6 +650,233 @@ function renderTeamPointsChart(week) {
       document.getElementById("status").textContent =
         "Status: Error loading data";
     });
+}
+
+// Fetch weekly progress data
+async function fetchWeeklyProgress() {
+  try {
+    const response = await fetch("/.netlify/functions/weekly-progress");
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    console.log("Fetched weekly progress data:", data);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Error fetching weekly progress:", error);
+    return [];
+  }
+}
+
+// Generate distinct colors for teams
+function generateTeamColors(numTeams) {
+  const colors = [];
+  const hueStep = 360 / numTeams;
+
+  for (let i = 0; i < numTeams; i++) {
+    const hue = (i * hueStep) % 360;
+    const saturation = 70 + (i % 3) * 10; // Vary saturation
+    const lightness = 50 + (i % 2) * 10; // Vary lightness
+    colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
+  }
+
+  return colors;
+}
+
+// Render weekly progress chart
+function renderWeeklyProgressChart() {
+  const ctx = document.getElementById("weeklyProgressChart");
+
+  // Destroy previous chart if it exists
+  if (weeklyProgressChart) {
+    weeklyProgressChart.destroy();
+  }
+
+  // Show loading state
+  ctx.style.display = "none";
+  const loadingDiv = document.createElement("div");
+  loadingDiv.id = "chartLoading";
+  loadingDiv.innerHTML = "Loading weekly progress data...";
+  loadingDiv.style.textAlign = "center";
+  loadingDiv.style.padding = "2rem";
+  loadingDiv.style.color = "var(--text-primary)";
+  ctx.parentNode.appendChild(loadingDiv);
+
+  fetchWeeklyProgress()
+    .then((data) => {
+      // Remove loading state
+      ctx.parentNode.removeChild(loadingDiv);
+      ctx.style.display = "block";
+
+      if (!data || data.length === 0) {
+        ctx.parentNode.innerHTML =
+          "<div style='text-align: center; padding: 2rem; color: var(--text-secondary);'>No weekly progress data available</div>";
+        return;
+      }
+
+      // Prepare data for Chart.js
+      const weeks = Array.from({ length: 14 }, (_, i) => i + 1);
+      const teamColors = generateTeamColors(data.length);
+
+      const datasets = data.map((team, index) => {
+        // Create cumulative points array for all weeks
+        const cumulativePoints = weeks.map((week) => {
+          const weekData = team.weeks.find((w) => w.week === week);
+          return weekData ? weekData.cumulative_points : 0;
+        });
+
+        // Create weekly points array for tooltips
+        const weeklyPoints = weeks.map((week) => {
+          const weekData = team.weeks.find((w) => w.week === week);
+          return weekData ? weekData.weekly_points : 0;
+        });
+
+        return {
+          label: team.team_name,
+          data: cumulativePoints,
+          borderColor: teamColors[index],
+          backgroundColor: teamColors[index] + "20", // Add transparency
+          borderWidth: 3,
+          pointRadius: 8,
+          pointHoverRadius: 12,
+          pointBackgroundColor: teamColors[index],
+          pointBorderColor: "#fff",
+          pointBorderWidth: 2,
+          fill: false,
+          tension: 0.1,
+          // Custom data for tooltips
+          weeklyPoints: weeklyPoints,
+          avatarId: team.avatar_id,
+        };
+      });
+
+      // Create the chart
+      weeklyProgressChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: weeks.map((w) => `Week ${w}`),
+          datasets: datasets,
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: "Weekly Progress - Cumulative Points",
+              font: {
+                size: 16,
+                weight: "bold",
+              },
+              color: "var(--text-primary)",
+            },
+            legend: {
+              display: true,
+              position: "top",
+              labels: {
+                usePointStyle: true,
+                padding: 20,
+                color: "var(--text-primary)",
+              },
+            },
+            tooltip: {
+              mode: "index",
+              intersect: false,
+              callbacks: {
+                title: function (context) {
+                  return `Week ${context[0].label}`;
+                },
+                label: function (context) {
+                  const team = context.dataset;
+                  const weekIndex = context.dataIndex;
+                  const weeklyPoints = team.weeklyPoints[weekIndex];
+                  const cumulativePoints = context.parsed.y;
+                  return [
+                    `${team.label}`,
+                    `This week: ${weeklyPoints.toFixed(2)} points`,
+                    `Total: ${cumulativePoints.toFixed(2)} points`,
+                  ];
+                },
+              },
+              backgroundColor: "rgba(0, 0, 0, 0.8)",
+              titleColor: "#fff",
+              bodyColor: "#fff",
+              borderColor: "var(--accent-primary)",
+              borderWidth: 1,
+            },
+          },
+          scales: {
+            x: {
+              display: true,
+              title: {
+                display: true,
+                text: "Week",
+                color: "var(--text-primary)",
+              },
+              grid: {
+                color: "var(--border-color)",
+              },
+              ticks: {
+                color: "var(--text-primary)",
+              },
+            },
+            y: {
+              display: true,
+              title: {
+                display: true,
+                text: "Cumulative Points",
+                color: "var(--text-primary)",
+              },
+              grid: {
+                color: "var(--border-color)",
+              },
+              ticks: {
+                color: "var(--text-primary)",
+              },
+            },
+          },
+          interaction: {
+            mode: "index",
+            intersect: false,
+          },
+        },
+      });
+    })
+    .catch((error) => {
+      console.error("Error rendering weekly progress chart:", error);
+      ctx.parentNode.removeChild(loadingDiv);
+      ctx.parentNode.innerHTML =
+        "<div style='text-align: center; padding: 2rem; color: var(--text-secondary);'>Error loading weekly progress data</div>";
+    });
+}
+
+// Tab switching functionality
+function initializeChartTabs() {
+  const tabs = document.querySelectorAll(".chart-tab");
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      // Remove active class from all tabs
+      tabs.forEach((t) => t.classList.remove("active"));
+
+      // Add active class to clicked tab
+      tab.classList.add("active");
+
+      const chartType = tab.dataset.chart;
+
+      if (chartType === "weekly-progress") {
+        renderWeeklyProgressChart();
+      } else if (chartType === "coming-soon") {
+        // Disable the coming soon tab
+        tab.disabled = true;
+        setTimeout(() => {
+          tab.disabled = false;
+          tab.classList.remove("active");
+          document
+            .querySelector('[data-chart="weekly-progress"]')
+            .classList.add("active");
+        }, 1000);
+      }
+    });
+  });
 }
 
 // Fetch team standings
@@ -854,19 +1082,13 @@ function initializeChart() {
   // Then refresh standings
   refreshStandings();
 
-  // Finally render the initial chart
-  renderTeamPointsChart(currentWeek);
+  // Initialize chart tabs
+  initializeChartTabs();
+
+  // Render the initial weekly progress chart
+  renderWeeklyProgressChart();
 
   // Add event listeners
-  document.getElementById("weekSelect").addEventListener("change", (e) => {
-    currentWeek = parseInt(e.target.value);
-    renderTeamPointsChart(currentWeek);
-  });
-
-  document.getElementById("refreshData").addEventListener("click", () => {
-    renderTeamPointsChart(currentWeek);
-  });
-
   document.getElementById("refreshStandings").addEventListener("click", () => {
     refreshStandings();
   });
