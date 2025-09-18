@@ -77,10 +77,17 @@ app.get("/api/team-standings", async (req, res) => {
         t.roster_id,
         t.team_id,
         t.owner_id,
-        MAX(t.avatar_id) as avatar_id
+        MAX(t.avatar_id) as avatar_id,
+        IFNULL(t.wins, 0) AS wins,
+        IFNULL(t.losses, 0) AS losses,
+        IFNULL(t.ties, 0) AS ties,
+        IFNULL(t.fpts, 0) + IFNULL(t.fpts_decimal, 0) / 100 AS total_score
       FROM \`sleeper_league.teams\` t
-      GROUP BY t.team_name, t.roster_id, t.team_id, t.owner_id
-      ORDER BY CAST(t.roster_id AS INT64)
+      GROUP BY t.team_name, t.roster_id, t.team_id, t.owner_id, t.wins, t.losses, t.ties, t.fpts, t.fpts_decimal
+      ORDER BY 
+        IFNULL(t.wins, 0) DESC,
+        IFNULL(t.losses, 0) ASC,
+        (IFNULL(t.fpts, 0) + IFNULL(t.fpts_decimal, 0) / 100) DESC
     `;
 
     console.log("📝 SQL Query:", query);
@@ -96,36 +103,13 @@ app.get("/api/team-standings", async (req, res) => {
     console.log(`✅ BigQuery returned ${rows.length} rows for standings`);
     console.log("📊 Sample standings data:", rows.slice(0, 2));
 
-    // Generate mock data for wins, losses, streak, and total_score
-    // In the future, this could come from actual matchup data
-    const standingsWithMockData = rows.map((team, index) => {
-      // Generate some realistic-looking mock data
-      const wins = Math.floor(Math.random() * 8) + 2; // 2-9 wins
-      const losses = Math.floor(Math.random() * 8) + 2; // 2-9 losses
-      const streak =
-        Math.random() > 0.5
-          ? `W${Math.floor(Math.random() * 3) + 1}`
-          : `L${Math.floor(Math.random() * 3) + 1}`;
-      const totalScore = Math.floor(Math.random() * 1000) + 800; // 800-1799 points
+    // Add rank based on total_score (already sorted by total_score DESC)
+    const standingsWithRank = rows.map((team, index) => ({
+      ...team,
+      rank: index + 1,
+    }));
 
-      return {
-        ...team,
-        wins,
-        losses,
-        ties: 0,
-        streak,
-        total_score: totalScore,
-        rank: index + 1,
-      };
-    });
-
-    // Sort by total score (descending) and update ranks
-    standingsWithMockData.sort((a, b) => b.total_score - a.total_score);
-    standingsWithMockData.forEach((team, index) => {
-      team.rank = index + 1;
-    });
-
-    res.json(standingsWithMockData);
+    res.json(standingsWithRank);
   } catch (error) {
     console.error("❌ Error fetching team standings:", error);
     console.error("🔍 Error details:", {

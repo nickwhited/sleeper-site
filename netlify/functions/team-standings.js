@@ -45,54 +45,36 @@ exports.handler = async (event, context) => {
     const leagueId = process.env.SLEEPER_LEAGUE_ID || "1260317227861692416";
 
     const query = `
-      WITH team_points AS (
-        SELECT m.week, m.matchup_id, CAST(m.roster_id AS STRING) AS roster_id, CAST(m.points AS FLOAT64) AS points
-        FROM \`sleeper_league.matchups\` m
-        WHERE m.roster_id IS NOT NULL
-      ),
-      paired AS (
-        SELECT a.week, a.matchup_id, a.roster_id, a.points,
-               b.roster_id AS opponent_roster_id, b.points AS opponent_points
-        FROM team_points a
-        JOIN team_points b
-          ON a.week = b.week AND a.matchup_id = b.matchup_id AND a.roster_id != b.roster_id
-      ),
-      agg AS (
-        SELECT
-          p.roster_id,
-          SUM(p.points) AS total_score,
-          SUM(CASE WHEN p.points > p.opponent_points THEN 1 ELSE 0 END) AS wins,
-          SUM(CASE WHEN p.points < p.opponent_points THEN 1 ELSE 0 END) AS losses,
-          SUM(CASE WHEN p.points = p.opponent_points THEN 1 ELSE 0 END) AS ties
-        FROM paired p
-        GROUP BY p.roster_id
-      ),
-      latest_results AS (
-        SELECT
-          p.roster_id,
-          ARRAY_AGG(CASE WHEN p.points > p.opponent_points THEN 'W' WHEN p.points < p.opponent_points THEN 'L' ELSE 'T' END ORDER BY p.week DESC) AS results
-        FROM paired p
-        GROUP BY p.roster_id
-      )
       SELECT 
         ANY_VALUE(t.team_name) AS team_name,
         t.roster_id,
         ANY_VALUE(t.team_id) AS team_id,
         ANY_VALUE(t.owner_id) AS owner_id,
         MAX(t.avatar_id) AS avatar_id,
-        IFNULL(a.total_score, 0) AS total_score
+        IFNULL(t.wins, 0) AS wins,
+        IFNULL(t.losses, 0) AS losses,
+        IFNULL(t.ties, 0) AS ties,
+        IFNULL(t.fpts, 0) + IFNULL(t.fpts_decimal, 0) / 100 AS total_score
       FROM \`sleeper_league.teams\` t
-      LEFT JOIN agg a ON t.roster_id = a.roster_id
-      GROUP BY t.roster_id, a.total_score
-      ORDER BY CAST(t.roster_id AS INT64)
+      GROUP BY t.roster_id, t.wins, t.losses, t.ties, t.fpts, t.fpts_decimal
+      ORDER BY 
+        IFNULL(t.wins, 0) DESC,
+        IFNULL(t.losses, 0) ASC,
+        (IFNULL(t.fpts, 0) + IFNULL(t.fpts_decimal, 0) / 100) DESC
     `;
 
     console.log("🚀 Executing BigQuery query...");
     const [rows] = await bigquery.query({ query, location: "US" });
     console.log(`✅ BigQuery returned ${rows.length} rows for standings`);
 
+    // Add rank based on total_score (already sorted by total_score DESC)
+    const standingsWithRank = rows.map((team, index) => ({
+      ...team,
+      rank: index + 1,
+    }));
+
     // If no data, fallback to mock
-    if (rows.length === 0) {
+    if (standingsWithRank.length === 0) {
       console.log("📊 No data found, generating mock standings...");
       const mockData = generateMockStandings();
       return { statusCode: 200, headers, body: JSON.stringify(mockData) };
@@ -123,7 +105,7 @@ exports.handler = async (event, context) => {
 
     // Deduplicate by roster_id and enhance names
     const byRoster = new Map();
-    rows.forEach((t) => {
+    standingsWithRank.forEach((t) => {
       if (!byRoster.has(t.roster_id)) byRoster.set(t.roster_id, t);
     });
     const enhanced = Array.from(byRoster.values()).map((t) => {
@@ -144,10 +126,6 @@ exports.handler = async (event, context) => {
       }
       return t;
     });
-
-    // Rank by total_score desc
-    enhanced.sort((a, b) => (b.total_score || 0) - (a.total_score || 0));
-    enhanced.forEach((t, i) => (t.rank = i + 1));
 
     return { statusCode: 200, headers, body: JSON.stringify(enhanced) };
   } catch (error) {

@@ -785,6 +785,10 @@ function renderStandingsTable(standings) {
 
     row.appendChild(teamCell);
 
+    // Add record
+    const record = `${team.wins || 0}-${team.losses || 0}-${team.ties || 0}`;
+    row.appendChild(createCell(record));
+
     // Add total score
     row.appendChild(createCell(team.total_score || 0));
 

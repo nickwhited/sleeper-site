@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS `sleeper_league.teams` (
   `ties` INT64,
   `points_for` FLOAT64,
   `points_against` FLOAT64,
+  `fpts` FLOAT64,
+  `fpts_decimal` FLOAT64,
+  `fpts_against` FLOAT64,
+  `fpts_against_decimal` FLOAT64,
+  `ppts` FLOAT64,
+  `ppts_decimal` FLOAT64,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );
 

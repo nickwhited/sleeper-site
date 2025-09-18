@@ -567,6 +567,18 @@ tr:hover {
     padding-right: 0.5rem;
   }
 
+  /* Record column styling */
+  td:nth-child(3) {
+    font-weight: 600;
+    text-align: center;
+    color: var(--accent-primary);
+  }
+
+  /* Record column header */
+  th:nth-child(3) {
+    text-align: center;
+  }
+
   .team-info {
     gap: 0.5rem;
   }

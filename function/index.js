@@ -185,6 +185,17 @@ exports.uploadLeagueData = async (req, res) => {
         owner_id: team.owner_id || null,
         players: team.players ? team.players.join(",") : "",
         avatar_id: avatarId, // Include the avatar ID
+        wins: team.settings ? team.settings.wins : 0,
+        losses: team.settings ? team.settings.losses : 0,
+        ties: team.settings ? team.settings.ties : 0,
+        fpts: team.settings ? team.settings.fpts : 0,
+        fpts_decimal: team.settings ? team.settings.fpts_decimal : 0,
+        fpts_against: team.settings ? team.settings.fpts_against : 0,
+        fpts_against_decimal: team.settings
+          ? team.settings.fpts_against_decimal
+          : 0,
+        ppts: team.settings ? team.settings.ppts : 0,
+        ppts_decimal: team.settings ? team.settings.ppts_decimal : 0,
       };
     });
 
