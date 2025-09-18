@@ -712,8 +712,18 @@ function renderWeeklyProgressChart() {
         return;
       }
 
-      // Prepare data for Chart.js
-      const weeks = Array.from({ length: 14 }, (_, i) => i + 1);
+      // Check how many weeks of data we have
+      const maxWeek = Math.max(
+        ...data.flatMap((team) => team.weeks.map((w) => parseInt(w.week)))
+      );
+      const weeks = Array.from({ length: maxWeek }, (_, i) => i + 1);
+
+      if (maxWeek < 2) {
+        ctx.parentNode.innerHTML =
+          "<div style='text-align: center; padding: 2rem; color: var(--text-secondary);'>Not enough weekly data available. Need at least 2 weeks to show progress chart.</div>";
+        return;
+      }
+
       const teamColors = generateTeamColors(data.length);
 
       const datasets = data.map((team, index) => {
