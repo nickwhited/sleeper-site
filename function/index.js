@@ -12,6 +12,29 @@ async function fetchJson(url) {
   return res.json();
 }
 
+// Helper function to clean up usernames for better readability
+function cleanUsername(username) {
+  if (!username) return username;
+
+  // Remove excessive numbers at the end
+  let cleaned = username.replace(/\d{6,}$/, "");
+
+  // If the name is mostly numbers, use a more friendly format
+  if (/^\d+$/.test(cleaned)) {
+    cleaned = `Player ${cleaned}`;
+  }
+
+  // Capitalize first letter of each word
+  cleaned = cleaned.replace(/\b\w/g, (l) => l.toUpperCase());
+
+  // If the name is too long, truncate it
+  if (cleaned.length > 20) {
+    cleaned = cleaned.substring(0, 17) + "...";
+  }
+
+  return cleaned;
+}
+
 // Fetch league teams
 async function fetchTeams() {
   return fetchJson(`https://api.sleeper.app/v1/league/${LEAGUE_ID}/rosters`);
@@ -100,26 +123,52 @@ exports.uploadLeagueData = async (req, res) => {
       };
     });
 
-    // Prepare data for BigQuery - Updated to use fallback logic and include avatars
+    // Prepare data for BigQuery - Updated to use actual team names and avatars
     const teamsData = teams.map((team) => {
-      // Priority: 1) User display name, 2) Generated team name, 3) Fallback
+      // Priority: 1) Team's custom name from settings, 2) User display name, 3) Generated team name, 4) Fallback
       let teamName;
       let avatarId = null;
 
-      if (team.owner_id && userMap[team.owner_id]) {
-        // Use the user's display name and avatar if available
-        teamName = userMap[team.owner_id].display_name;
-        avatarId = userMap[team.owner_id].avatar;
+      // Log the team object to see what data is available
+      console.log(`🔍 Team ${team.roster_id} data:`, {
+        owner_id: team.owner_id,
+        settings: team.settings,
+        has_custom_name: team.settings && team.settings.name,
+        custom_name: team.settings && team.settings.name,
+      });
+
+      if (
+        team.settings &&
+        team.settings.name &&
+        team.settings.name.trim() !== ""
+      ) {
+        // Use the team's custom name from roster settings (this is the actual team name)
+        teamName = team.settings.name.trim();
+        avatarId =
+          team.owner_id && userMap[team.owner_id]
+            ? userMap[team.owner_id].avatar
+            : null;
         console.log(
-          `✅ Using display name for roster ${
+          `✅ Using custom team name for roster ${
             team.roster_id
           }: "${teamName}" (Avatar: ${avatarId ? "Yes" : "No"})`
+        );
+      } else if (team.owner_id && userMap[team.owner_id]) {
+        // Fallback to user's display name if no custom team name
+        // Clean up the username to make it more readable
+        let rawName = userMap[team.owner_id].display_name;
+        teamName = cleanUsername(rawName);
+        avatarId = userMap[team.owner_id].avatar;
+        console.log(
+          `⚠️ Using cleaned display name for roster ${
+            team.roster_id
+          }: "${rawName}" → "${teamName}" (Avatar: ${avatarId ? "Yes" : "No"})`
         );
       } else if (team.owner_id) {
         // Fallback: use last 4 chars of owner ID
         teamName = `Team ${team.owner_id.slice(-4)}`;
         console.log(
-          `⚠️ Using fallback name for roster ${team.roster_id}: "${teamName}"`
+          `🔄 Using fallback name for roster ${team.roster_id}: "${teamName}"`
         );
       } else {
         // Final fallback: generic team name

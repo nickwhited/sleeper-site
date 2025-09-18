@@ -659,9 +659,14 @@ async function fetchTeamStandings() {
   if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
   const data = await response.json();
   console.log("📊 API returned data:", data);
-  // Names/avatars are already enhanced server-side; keep client enhancer as a no-op fallback
-  const enhancedData = await enhanceTeamNames(data);
-  return enhancedData;
+  // Rely on server-enhanced names; dedupe by roster_id client-side just in case
+  const seen = new Set();
+  const deduped = data.filter((t) => {
+    if (seen.has(t.roster_id)) return false;
+    seen.add(t.roster_id);
+    return true;
+  });
+  return deduped;
 }
 
 // Enhance team names with real Sleeper display names
@@ -780,16 +785,6 @@ function renderStandingsTable(standings) {
 
     row.appendChild(teamCell);
 
-    // Add win streak with styling
-    const streakCell = document.createElement("td");
-    streakCell.textContent = team.streak || "-";
-    if (team.streak && team.streak.startsWith("W")) {
-      streakCell.className = "streak-positive";
-    } else if (team.streak && team.streak.startsWith("L")) {
-      streakCell.className = "streak-negative";
-    }
-    row.appendChild(streakCell);
-
     // Add total score
     row.appendChild(createCell(team.total_score || 0));
 
@@ -840,7 +835,7 @@ async function updateDashboardTitle() {
     const leagueInfo = await fetchLeagueInfo();
     if (leagueInfo && leagueInfo.name) {
       const title = document.querySelector("h1");
-      title.textContent = `🏈 ${leagueInfo.name} Dashboard`;
+      title.textContent = `${leagueInfo.name} Dashboard`;
     }
   } catch (error) {
     console.error("Error updating dashboard title:", error);

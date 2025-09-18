@@ -42,6 +42,7 @@ exports.handler = async (event, context) => {
     console.log(
       "🏆 Fetching team standings from BigQuery (real aggregates)..."
     );
+    const leagueId = process.env.SLEEPER_LEAGUE_ID || "1260317227861692416";
 
     const query = `
       WITH team_points AS (
@@ -72,44 +73,17 @@ exports.handler = async (event, context) => {
           ARRAY_AGG(CASE WHEN p.points > p.opponent_points THEN 'W' WHEN p.points < p.opponent_points THEN 'L' ELSE 'T' END ORDER BY p.week DESC) AS results
         FROM paired p
         GROUP BY p.roster_id
-      ),
-      streak_calc AS (
-        SELECT
-          lr.roster_id,
-          CASE
-            WHEN ARRAY_LENGTH(lr.results) = 0 THEN 'T0'
-            ELSE CONCAT(
-              lr.results[SAFE_OFFSET(0)],
-              CAST(
-                COALESCE(
-                  (
-                    SELECT COUNT(1)
-                    FROM UNNEST(lr.results) r WITH OFFSET off
-                    WHERE r = lr.results[SAFE_OFFSET(0)]
-                      AND (off = 0 OR lr.results[SAFE_OFFSET(off-1)] = lr.results[SAFE_OFFSET(0)])
-                  ),
-                  1
-                ) AS STRING
-              )
-            )
-          END AS streak
-        FROM latest_results lr
       )
       SELECT 
-        t.team_name,
+        ANY_VALUE(t.team_name) AS team_name,
         t.roster_id,
-        t.team_id,
-        t.owner_id,
+        ANY_VALUE(t.team_id) AS team_id,
+        ANY_VALUE(t.owner_id) AS owner_id,
         MAX(t.avatar_id) AS avatar_id,
-        IFNULL(a.wins, 0) AS wins,
-        IFNULL(a.losses, 0) AS losses,
-        IFNULL(a.ties, 0) AS ties,
-        IFNULL(a.total_score, 0) AS total_score,
-        IFNULL(sc.streak, '-') AS streak
+        IFNULL(a.total_score, 0) AS total_score
       FROM \`sleeper_league.teams\` t
       LEFT JOIN agg a ON t.roster_id = a.roster_id
-      LEFT JOIN streak_calc sc ON t.roster_id = sc.roster_id
-      GROUP BY t.team_name, t.roster_id, t.team_id, t.owner_id, a.wins, a.losses, a.ties, a.total_score, sc.streak
+      GROUP BY t.roster_id, a.total_score
       ORDER BY CAST(t.roster_id AS INT64)
     `;
 
@@ -124,42 +98,55 @@ exports.handler = async (event, context) => {
       return { statusCode: 200, headers, body: JSON.stringify(mockData) };
     }
 
-    // Enhance names/avatars from Sleeper for owners who joined
-    const ownerIds = Array.from(
-      new Set(rows.map((r) => r.owner_id).filter((v) => !!v))
-    );
+    // Prefer custom team names from Sleeper league users metadata
     const userMap = {};
-    for (const ownerId of ownerIds) {
-      try {
-        const resp = await fetch(`https://api.sleeper.app/v1/user/${ownerId}`);
-        if (resp.ok) {
-          const u = await resp.json();
-          userMap[ownerId] = u;
-        }
-      } catch (e) {
-        // ignore
+    try {
+      const resp = await fetch(
+        `https://api.sleeper.app/v1/league/${leagueId}/users`
+      );
+      if (resp.ok) {
+        const users = await resp.json();
+        users.forEach((u) => {
+          userMap[u.user_id] = {
+            display_name: u.display_name,
+            team_name:
+              (u.metadata &&
+                (u.metadata.team_name || u.metadata.team_name_updated)) ||
+              null,
+            avatar: u.avatar || null,
+          };
+        });
       }
+    } catch (e) {
+      console.warn("Could not fetch league users for custom names:", e.message);
     }
 
-    const enhanced = rows.map((t) => {
+    // Deduplicate by roster_id and enhance names
+    const byRoster = new Map();
+    rows.forEach((t) => {
+      if (!byRoster.has(t.roster_id)) byRoster.set(t.roster_id, t);
+    });
+    const enhanced = Array.from(byRoster.values()).map((t) => {
       if (t.owner_id && userMap[t.owner_id]) {
+        const custom = userMap[t.owner_id].team_name;
+        const isGeneric =
+          t.team_name && t.team_name.toLowerCase().startsWith("team ");
+        const finalTeamName =
+          custom ||
+          (!isGeneric
+            ? t.team_name
+            : userMap[t.owner_id].display_name || t.team_name);
         return {
           ...t,
-          team_name: userMap[t.owner_id].display_name || t.team_name,
+          team_name: finalTeamName,
           avatar_id: userMap[t.owner_id].avatar || t.avatar_id,
-          is_real_team: true,
         };
       }
-      return { ...t, is_real_team: false };
+      return t;
     });
 
-    // Rank by total_score desc (or by wins then points if desired)
-    enhanced.sort((a, b) => {
-      if (a.wins !== b.wins) return b.wins - a.wins;
-      if ((a.total_score || 0) !== (b.total_score || 0))
-        return (b.total_score || 0) - (a.total_score || 0);
-      return parseInt(a.roster_id, 10) - parseInt(b.roster_id, 10);
-    });
+    // Rank by total_score desc
+    enhanced.sort((a, b) => (b.total_score || 0) - (a.total_score || 0));
     enhanced.forEach((t, i) => (t.rank = i + 1));
 
     return { statusCode: 200, headers, body: JSON.stringify(enhanced) };

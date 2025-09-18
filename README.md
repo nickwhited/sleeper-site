@@ -67,6 +67,7 @@ sleepers_league
 ### visuals
 
 - chart that shows week over week progress (like the chart in mario party). x-axis = week, y-axis = wins
+  -- prompt:
 - a team graphic that shows their players position on the field (K and DEF on sidelines)
 
 ## workspace
